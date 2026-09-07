@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mountain, Pickaxe, Radio, RotateCcw, Shield, TriangleAlert } from 'lucide-react';
+import { Radio, RotateCcw, TriangleAlert } from 'lucide-react';
 
 type Terrain = 'unknown' | 'start' | 'plain' | 'canyon' | 'low' | 'high' | 'volcano';
 type Card = { id: number; left: string; right: string };
@@ -14,8 +14,13 @@ const cards: Omit<Card, 'id'>[] = [
 const colors = ['#ffe08a', '#79d2a6', '#82b9ff', '#ef91b8'];
 const playerNames = ['Astra', 'Beacon', 'Cosmo', 'Dawn'];
 const terrainLabel: Record<Terrain, string> = { unknown:'Unexplored',start:'Base',plain:'Plain',canyon:'Canyon',low:'Low mine',high:'High mine',volcano:'Volcano' };
+const terrainMark: Record<Terrain,string> = { unknown:'?',start:'BASE',plain:'',canyon:'C',low:'L',high:'H',volcano:'!' };
+const hexes=Array.from({length:7},(_,q)=>q-3).flatMap(q=>Array.from({length:7},(_,r)=>r-3).filter(r=>Math.max(Math.abs(q),Math.abs(r),Math.abs(-q-r))<=3).map(r=>({q,r})));
+const hexSize=42, boardCenter={x:260,y:235};
+function hexCenter(q:number,r:number){return{x:boardCenter.x+hexSize*Math.sqrt(3)*(q+r/2),y:boardCenter.y+hexSize*1.5*r};}
+function hexPoints(x:number,y:number){return Array.from({length:6},(_,i)=>{const a=(Math.PI/180)*(60*i-30);return `${x+hexSize*Math.cos(a)},${y+hexSize*Math.sin(a)}`;}).join(' ');}
 function shuffledBag() { return ([...Array(16).fill('plain'),...Array(7).fill('canyon'),...Array(9).fill('low'),...Array(5).fill('high'),...Array(4).fill('volcano')] as Terrain[]).sort(() => Math.random() - .5); }
-function makeBoard() { const board=Array<Terrain>(37).fill('unknown'); [11,17,18,19,24,25,26].forEach(i=>board[i]='start'); return board; }
+function makeBoard() { return hexes.map(({q,r})=>Math.max(Math.abs(q),Math.abs(r),Math.abs(-q-r))<=1?'start':'unknown') as Terrain[]; }
 function makeHand(seed=0):Card[] { return Array.from({length:4},(_,i)=>({...cards[(i+seed)%cards.length],id:seed*10+i})); }
 
 export default function Home() {
@@ -49,7 +54,7 @@ export default function Home() {
         <div className="stat-row"><span>Turn</span><b>{turn}</b></div><div className="stat-row"><span>Mapped</span><b>{explored} / 37</b></div><div className="stat-row"><span>Tiles left</span><b>{bag.length}</b></div>
       </aside>
       <section className="board-shell order-1 xl:order-2" aria-label="Venus exploration board"><div className="board-heading"><div><p className="eyebrow">Ishtar Terra sector</p><h2>Shared survey map</h2></div><div className="legend"><span><i className="plain"/>Plain</span><span><i className="low"/>Low</span><span><i className="high"/>High</span><span><i className="canyon"/>Canyon</span></div></div>
-        <div className="hex-grid">{board.map((tile,i)=><button key={i} className={`hex ${tile}`} onClick={()=>reveal(i)} disabled={tile!=='unknown'||selected===null} aria-label={`${terrainLabel[tile]} sector ${i+1}`} title={terrainLabel[tile]}>{tile==='start'&&<Shield/>}{tile==='low'&&<Pickaxe/>}{tile==='high'&&<Pickaxe/>}{tile==='volcano'&&<TriangleAlert/>}{tile==='canyon'&&<Mountain/>}{tile==='unknown'&&<span>?</span>}</button>)}</div>
+        <svg className="hex-grid" viewBox="0 0 520 470" role="group" aria-label="Thirty-seven connected hexagonal spaces">{board.map((tile,i)=>{const {x,y}=hexCenter(hexes[i].q,hexes[i].r);const enabled=tile==='unknown'&&selected!==null;return <g key={i} className={`hex ${tile} ${enabled?'enabled':''}`} role="button" tabIndex={enabled?0:-1} aria-disabled={!enabled} aria-label={`${terrainLabel[tile]} sector ${i+1}`} onClick={()=>reveal(i)} onKeyDown={e=>{if(enabled&&(e.key==='Enter'||e.key===' ')){e.preventDefault();reveal(i)}}}><polygon points={hexPoints(x,y)}/>{terrainMark[tile]&&<text x={x} y={y} textAnchor="middle" dominantBaseline="central">{terrainMark[tile]}</text>}</g>})}</svg>
         <p className="board-note"><Radio/>Select a card, then choose an unexplored hex to simulate drone discovery.</p>
       </section>
       <aside className="panel order-3"><p className="eyebrow">Command hand · choose one card</p><div className="space-y-2">{hand.map(card=><button key={card.id} className={`action-card ${selected===card.id?'selected':''}`} onClick={()=>setSelected(card.id)}><span>{card.left}</span><em>OR</em><span>{card.right}</span></button>)}</div>
