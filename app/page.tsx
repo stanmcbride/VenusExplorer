@@ -16,7 +16,7 @@ const playerNames = ['Astra', 'Beacon', 'Cosmo', 'Dawn'];
 const terrainLabel: Record<Terrain, string> = { unknown:'Unexplored',start:'Base',plain:'Plain',canyon:'Canyon',low:'Low mine',high:'High mine',volcano:'Volcano' };
 function shuffledBag() { return ([...Array(16).fill('plain'),...Array(7).fill('canyon'),...Array(9).fill('low'),...Array(5).fill('high'),...Array(4).fill('volcano')] as Terrain[]).sort(() => Math.random() - .5); }
 function makeBoard() { const board=Array<Terrain>(37).fill('unknown'); board[18]='start'; return board; }
-function makeHand(seed=0):Card[] { return Array.from({length:5},(_,i)=>({...cards[(i+seed)%cards.length],id:seed*10+i})); }
+function makeHand(seed=0):Card[] { return Array.from({length:4},(_,i)=>({...cards[(i+seed)%cards.length],id:seed*10+i})); }
 
 export default function Home() {
   const [players,setPlayers]=useState(3), [active,setActive]=useState(0), [turn,setTurn]=useState(1);

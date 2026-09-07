@@ -34,17 +34,17 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 2. Place crawlers on the safe central starting spaces and each player's drone with its crawler.
 3. Build and shuffle the terrain bag from the selected terrain ratios.
 4. Build and shuffle the action deck.
-5. Deal five cards to every player.
+5. Deal four cards to every player.
 6. Randomly determine the first player unless a later rule specifies another method.
 
 ## Turn sequence
 
-1. The active player chooses one card from their five-card hand.
+1. The active player chooses one card from their four-card hand.
 2. They choose exactly one of the card's two actions.
 3. They resolve that action completely. Unused movement may be forfeited.
 4. If their crawler ends on an eligible mine, they may claim/mine it.
 5. The played card goes to the discard pile.
-6. The player draws back to five cards.
+6. The player draws back to four cards.
 7. Play passes clockwise.
 
 If a volcano revealed during an action reaches the configured eruption threshold, play ends immediately—even if movement or the current turn would otherwise continue.
@@ -60,7 +60,7 @@ If a volcano revealed during an action reaches the configured eruption threshold
 | Build 1 bridge section | Move crawler 2; may mine at each location |
 | Build 1 bridge section | Explore with drone 4 |
 
-These six faces come from slide 1 of `CardDeck_v0.1.pptx`. Slide 12 contains additional or alternate faces, including Drone 7, Build 2, Crawler 3, and Crawler 1 combinations; their intended deck status remains open. The frequency of each card type remains configurable. “Build a bridge” needs placement and supply rules before it can be fully enforced.
+These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current deck direction. Slide 12 records earlier exploration, so its additional or alternate faces are excluded from the active deck. The frequency of each current card type remains configurable. “Build a bridge” needs placement and supply rules before it can be fully enforced.
 
 ## Movement and exploration
 
@@ -93,7 +93,7 @@ The first player must create the first useful survey route, while later players 
 
 ## Version 0.0 implementation
 
-The current interface provides a shared 37-space survey board, 2–4 pass-and-play explorers, five selectable action cards, randomized terrain revelation, an adjustable-by-code terrain bag, scoring controls, card replacement, and an immediate four-volcano ending. It is an interaction prototype, not yet the complete rules engine: crawler/drone positions, legal pathfinding, bridge placement, mine claim limits, per-player hands, reshuffling, and final tie handling are not enforced yet.
+The current interface provides a shared 37-space survey board, 2–4 pass-and-play explorers, four selectable action cards, randomized terrain revelation, an adjustable-by-code terrain bag, scoring controls, card replacement, and an immediate four-volcano ending. It is an interaction prototype, not yet the complete rules engine: crawler/drone positions, legal pathfinding, bridge placement, mine claim limits, per-player hands, reshuffling, and final tie handling are not enforced yet.
 
 ### Provisional balance defaults
 
@@ -109,12 +109,11 @@ The prototype bag currently uses 41 terrain tiles: 16 plains, 7 canyons, 9 low m
 6. Whether bridge pieces are limited, shared, owned, and/or worth points.
 7. Whether each low mine permits one claim per player and exactly three claims total.
 8. Whether mining consumes movement, the whole card action, or no additional action.
-9. Resolve the hand-size conflict: the spoken rules say draw back to five, while the helper card on slide 3 says draw back to four.
-10. Confirm whether slide 12 contains active card faces, rejected experiments, or print-layout leftovers; then set deck size and copies of each approved face.
-11. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
-12. Tile-bag size/ratios by player count and the eruption threshold for each setup.
-13. What occurs if the terrain bag empties before the final volcano appears.
-14. Tie-breaker order and whether returning the crawler to safety matters at game end.
+9. Set the deck size and number of copies of each approved slide 1 card face.
+10. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
+11. Tile-bag size/ratios by player count and the eruption threshold for each setup.
+12. What occurs if the terrain bag empties before the final volcano appears.
+13. Tie-breaker order and whether returning the crawler to safety matters at game end.
 
 ## Development direction
 
