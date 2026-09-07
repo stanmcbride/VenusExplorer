@@ -21,7 +21,7 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 
 | Tile | Effect |
 |---|---|
-| Start / base | Safe initial crawler position; exact starting geometry is still to be defined. |
+| Start / base | Seven connected safe hexes: one central base hex surrounded by six starting hexes. |
 | Plain | Explored, traversable terrain with no resource value. |
 | Canyon | Blocks crawlers until a bridge spans the canyon. |
 | Low-value mine | Worth 1 point per claim; may be claimed by up to three different explorers. |
@@ -97,11 +97,11 @@ The current interface provides a shared 37-space survey board, 2–4 pass-and-pl
 
 ### Provisional balance defaults
 
-The prototype bag currently uses 41 terrain tiles: 16 plains, 7 canyons, 9 low mines, 5 high mines, and 4 volcanoes. The board displays 37 spaces including the starting space, and the fourth volcano ends the game. These are test values—not finalized game rules.
+The prototype bag currently uses 41 terrain tiles: 16 plains, 7 canyons, 9 low mines, 5 high mines, and 4 volcanoes. The board displays 37 spaces, including the seven-hex starting block, and the fourth volcano ends the game. These are test values—not finalized game rules.
 
 ## Decisions needed next
 
-1. Exact board radius, total hex count, and whether the center is one start hex or a ring of player-specific start hexes.
+1. Exact outer board radius and total hex count beyond the confirmed seven-hex starting block.
 2. Whether drone movement is a single contiguous route and whether it may revisit a hex during one action.
 3. What happens when a drone reaches the board edge before spending all movement.
 4. Whether a crawler may move through another crawler or share a hex.
