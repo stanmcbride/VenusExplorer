@@ -93,27 +93,26 @@ The first player must create the first useful survey route, while later players 
 
 ## Version 0.0 implementation
 
-The current interface provides a shared 37-space survey board, 2–4 pass-and-play explorers, four selectable action cards, randomized terrain revelation, an adjustable-by-code terrain bag, scoring controls, card replacement, and an immediate four-volcano ending. It is an interaction prototype, not yet the complete rules engine: crawler/drone positions, legal pathfinding, bridge placement, mine claim limits, per-player hands, reshuffling, and final tie handling are not enforced yet.
+The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four selectable action cards, randomized terrain revelation, an adjustable-by-code terrain bag, scoring controls, card replacement, and an immediate four-volcano ending. It is an interaction prototype, not yet the complete rules engine: crawler/drone positions, legal pathfinding, bridge placement, mine claim limits, per-player hands, reshuffling, and final tie handling are not enforced yet.
 
 ### Provisional balance defaults
 
-The prototype bag currently uses 41 terrain tiles: 16 plains, 7 canyons, 9 low mines, 5 high mines, and 4 volcanoes. The board displays 37 spaces, including the seven-hex starting block, and the fourth volcano ends the game. These are test values—not finalized game rules.
+The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. The terrain bag expands to match while retaining the provisional 16:7:9:5 ratio for plains, canyons, low mines, and high mines, plus four volcanoes. The fourth volcano ends the game. The terrain mix remains a test value, not a finalized rule.
 
 ## Decisions needed next
 
-1. Exact outer board radius and total hex count beyond the confirmed seven-hex starting block.
-2. Whether drone movement is a single contiguous route and whether it may revisit a hex during one action.
-3. What happens when a drone reaches the board edge before spending all movement.
-4. Whether a crawler may move through another crawler or share a hex.
-5. Bridge placement: placed from the crawler, adjacent to it, from anywhere explored, or as part of movement; one permanent bridge per canyon tile or an edge-spanning bridge between two banks.
-6. Whether bridge pieces are limited, shared, owned, and/or worth points.
-7. Whether each low mine permits one claim per player and exactly three claims total.
-8. Whether mining consumes movement, the whole card action, or no additional action.
-9. Set the deck size and number of copies of each approved slide 1 card face.
-10. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
-11. Tile-bag size/ratios by player count and the eruption threshold for each setup.
-12. What occurs if the terrain bag empties before the final volcano appears.
-13. Tie-breaker order and whether returning the crawler to safety matters at game end.
+1. Whether drone movement is a single contiguous route and whether it may revisit a hex during one action.
+2. What happens when a drone reaches the board edge before spending all movement.
+3. Whether a crawler may move through another crawler or share a hex.
+4. Bridge placement: placed from the crawler, adjacent to it, from anywhere explored, or as part of movement; one permanent bridge per canyon tile or an edge-spanning bridge between two banks.
+5. Whether bridge pieces are limited, shared, owned, and/or worth points.
+6. Whether each low mine permits one claim per player and exactly three claims total.
+7. Whether mining consumes movement, the whole card action, or no additional action.
+8. Set the deck size and number of copies of each approved slide 1 card face.
+9. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
+10. Final tile ratios by player count and whether the eruption threshold changes with board size.
+11. What occurs if the terrain bag empties before the final volcano appears.
+12. Tie-breaker order and whether returning the crawler to safety matters at game end.
 
 ## Development direction
 
