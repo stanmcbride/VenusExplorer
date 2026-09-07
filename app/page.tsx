@@ -459,7 +459,7 @@ export default function Home() {
           </div>
         </div>
       </header>
-      <section className="mx-auto grid max-w-[1500px] gap-4 p-4 md:p-7 xl:grid-cols-[250px_minmax(540px,1fr)_350px]">
+      <section className="mx-auto grid max-w-[1500px] items-start gap-4 p-4 md:p-7 xl:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="panel order-2 xl:order-1">
           <p className="eyebrow">Crew manifest</p>
           <div className="mb-5 grid grid-cols-3 gap-2">
@@ -525,225 +525,224 @@ export default function Home() {
             <b>{bag.length}</b>
           </div>
         </aside>
-        <section
-          className="board-shell order-1 xl:order-2"
-          aria-label="Venus exploration board"
-        >
-          <div className="board-heading">
-            <div>
-              <p className="eyebrow">Ishtar Terra sector</p>
-              <h2>Shared survey map</h2>
-            </div>
-            <div className="legend">
-              <span>
-                <i className="plain" />
-                Plain
-              </span>
-              <span>
-                <i className="low" />
-                Low
-              </span>
-              <span>
-                <i className="high" />
-                High
-              </span>
-              <span>
-                <i className="canyon" />
-                Canyon
-              </span>
-            </div>
-          </div>
-          <svg
-            className="hex-grid"
-            viewBox={boardViewBox}
-            aria-label={`${board.length} connected hexagonal spaces`}
-          >
-            {board.map((tile, i) => {
-              const { x, y } = hexCenter(hexes[i].q, hexes[i].r),
-                enabled = tileIsLegal(i),
-                routeOrder = path.indexOf(i),
-                bridgePreview = placedBridges.includes(i),
-                occupants = crawlerPositions
-                  .map((position, player) =>
-                    position === i && player < players ? player : -1,
-                  )
-                  .filter((player) => player >= 0),
-                claimCount =
-                  tile.terrain === 'low'
-                    ? tile.lowClaims.length
-                    : tile.highClaim === null
-                      ? 0
-                      : 1;
-              return (
-                <g
-                  key={i}
-                  className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''} ${routeOrder >= 0 ? 'route' : ''}`}
-                  tabIndex={enabled ? 0 : -1}
-                  aria-disabled={!enabled}
-                  aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}`}
-                  onClick={() => handleTile(i)}
-                  onKeyDown={(e) => {
-                    if (enabled && (e.key === 'Enter' || e.key === ' ')) {
-                      e.preventDefault();
-                      handleTile(i);
-                    }
-                  }}
-                >
-                  <polygon points={hexPoints(x, y)} />
-                  {terrainMark[tile.terrain] && (
-                    <text
-                      x={x}
-                      y={y - (occupants.length ? 10 : 0)}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                    >
-                      {terrainMark[tile.terrain]}
-                    </text>
-                  )}
-                  {(tile.bridge || bridgePreview) && (
-                    <text
-                      className="bridge-mark"
-                      x={x}
-                      y={y + 12}
-                      textAnchor="middle"
-                    >
-                      ═
-                    </text>
-                  )}
-                  {routeOrder > 0 && (
-                    <circle className="route-dot" cx={x} cy={y + 24} r="5" />
-                  )}
-                  {occupants.map((player, offset) => (
-                    <circle
-                      key={player}
-                      className="crawler-token"
-                      cx={x - (occupants.length - 1) * 7 + offset * 14}
-                      cy={y + 21}
-                      r="7"
-                      fill={colors[player]}
-                    />
-                  ))}
-                  {claimCount > 0 && (
-                    <text
-                      className="claim-mark"
-                      x={x + 23}
-                      y={y - 18}
-                      textAnchor="middle"
-                    >
-                      ◆{claimCount}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-          <p className="board-note">
-            <Radio />
-            {instructions}
-          </p>
-        </section>
-        <aside className="panel order-3">
-          <p className="eyebrow">
-            {playerNames[active]}’s hand · choose one card
-          </p>
-          <div className="space-y-2">
-            {hands[active]?.map((card) => (
-              <div
-                key={card.id}
-                className={`action-card ${selectedCard === card.id ? 'selected' : ''}`}
-              >
-                <button
-                  onClick={() => chooseCard(card.id)}
-                  aria-label={`Select card: ${card.left.label} or ${card.right.label}`}
-                  className="card-select-overlay"
-                />
-                <button
-                  className={`card-half ${selectedCard === card.id && selectedSide === 'left' ? 'chosen' : ''}`}
-                  onClick={() => chooseSide('left', card)}
-                >
-                  {card.left.label}
-                </button>
-                <em>OR</em>
-                <button
-                  className={`card-half right ${selectedCard === card.id && selectedSide === 'right' ? 'chosen' : ''}`}
-                  onClick={() => chooseSide('right', card)}
-                >
-                  {card.right.label}
-                </button>
+        <div className="play-column order-1 xl:order-2">
+          <section className="board-shell" aria-label="Venus exploration board">
+            <div className="board-heading">
+              <div>
+                <p className="eyebrow">Ishtar Terra sector</p>
+                <h2>Shared survey map</h2>
               </div>
-            ))}
-          </div>
-          <div className="action-status">
-            <strong>{action ? action.label : 'Awaiting command'}</strong>
-            <span>
-              {action
-                ? `${action.kind === 'bridge' ? placedBridges.length : stepsUsed} / ${action.amount} ${action.kind === 'bridge' ? 'placed' : 'spaces'}`
-                : instructions}
-            </span>
-          </div>
-          {!actionResolved && action && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="secondary"
-                disabled={
-                  action.kind === 'drone' ||
-                  (action.kind === 'crawler'
-                    ? stepsUsed === 0
-                    : placedBridges.length === 0)
-                }
-                onClick={undoStep}
-              >
-                <Undo2 />
-                Undo
-              </Button>
-              <Button
-                disabled={
-                  action.kind === 'crawler' || action.kind === 'drone'
-                    ? stepsUsed === 0
-                    : placedBridges.length === 0
-                }
-                onClick={resolveAction}
-              >
-                Resolve action
-              </Button>
+              <div className="legend">
+                <span>
+                  <i className="plain" />
+                  Plain
+                </span>
+                <span>
+                  <i className="low" />
+                  Low
+                </span>
+                <span>
+                  <i className="high" />
+                  High
+                </span>
+                <span>
+                  <i className="canyon" />
+                  Canyon
+                </span>
+              </div>
             </div>
-          )}
-          {actionResolved && claimable.length > 0 && (
-            <div className="claim-panel">
-              <p className="eyebrow">Eligible mine claims</p>
-              {claimable.map((index) => (
-                <Button
-                  key={index}
-                  variant="secondary"
-                  onClick={() => claimMine(index)}
+            <svg
+              className="hex-grid"
+              viewBox={boardViewBox}
+              aria-label={`${board.length} connected hexagonal spaces`}
+            >
+              {board.map((tile, i) => {
+                const { x, y } = hexCenter(hexes[i].q, hexes[i].r),
+                  enabled = tileIsLegal(i),
+                  routeOrder = path.indexOf(i),
+                  bridgePreview = placedBridges.includes(i),
+                  occupants = crawlerPositions
+                    .map((position, player) =>
+                      position === i && player < players ? player : -1,
+                    )
+                    .filter((player) => player >= 0),
+                  claimCount =
+                    tile.terrain === 'low'
+                      ? tile.lowClaims.length
+                      : tile.highClaim === null
+                        ? 0
+                        : 1;
+                return (
+                  <g
+                    key={i}
+                    className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''} ${routeOrder >= 0 ? 'route' : ''}`}
+                    tabIndex={enabled ? 0 : -1}
+                    aria-disabled={!enabled}
+                    aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}`}
+                    onClick={() => handleTile(i)}
+                    onKeyDown={(e) => {
+                      if (enabled && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        handleTile(i);
+                      }
+                    }}
+                  >
+                    <polygon points={hexPoints(x, y)} />
+                    {terrainMark[tile.terrain] && (
+                      <text
+                        x={x}
+                        y={y - (occupants.length ? 10 : 0)}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                      >
+                        {terrainMark[tile.terrain]}
+                      </text>
+                    )}
+                    {(tile.bridge || bridgePreview) && (
+                      <text
+                        className="bridge-mark"
+                        x={x}
+                        y={y + 12}
+                        textAnchor="middle"
+                      >
+                        ═
+                      </text>
+                    )}
+                    {routeOrder > 0 && (
+                      <circle className="route-dot" cx={x} cy={y + 24} r="5" />
+                    )}
+                    {occupants.map((player, offset) => (
+                      <circle
+                        key={player}
+                        className="crawler-token"
+                        cx={x - (occupants.length - 1) * 7 + offset * 14}
+                        cy={y + 21}
+                        r="7"
+                        fill={colors[player]}
+                      />
+                    ))}
+                    {claimCount > 0 && (
+                      <text
+                        className="claim-mark"
+                        x={x + 23}
+                        y={y - 18}
+                        textAnchor="middle"
+                      >
+                        ◆{claimCount}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+            <p className="board-note">
+              <Radio />
+              {instructions}
+            </p>
+          </section>
+          <aside className="panel hand-panel">
+            <p className="eyebrow">
+              {playerNames[active]}’s hand · choose one card
+            </p>
+            <div className="hand-cards">
+              {hands[active]?.map((card) => (
+                <div
+                  key={card.id}
+                  className={`action-card ${selectedCard === card.id ? 'selected' : ''}`}
                 >
-                  Claim {terrainLabel[board[index].terrain]} +
-                  {board[index].terrain === 'high' ? 3 : 1}
-                </Button>
+                  <button
+                    onClick={() => chooseCard(card.id)}
+                    aria-label={`Select card: ${card.left.label} or ${card.right.label}`}
+                    className="card-select-overlay"
+                  />
+                  <button
+                    className={`card-half ${selectedCard === card.id && selectedSide === 'left' ? 'chosen' : ''}`}
+                    onClick={() => chooseSide('left', card)}
+                  >
+                    {card.left.label}
+                  </button>
+                  <em>OR</em>
+                  <button
+                    className={`card-half right ${selectedCard === card.id && selectedSide === 'right' ? 'chosen' : ''}`}
+                    onClick={() => chooseSide('right', card)}
+                  >
+                    {card.right.label}
+                  </button>
+                </div>
               ))}
             </div>
-          )}
-          <Button
-            className="mt-4 w-full"
-            size="lg"
-            disabled={!actionResolved || gameOver}
-            onClick={endTurn}
-          >
-            Finish turn &amp; pass
-          </Button>
-          <p className="muted mt-3">
-            Crawler routes use mapped, passable spaces. Drone routes reveal
-            adjacent spaces. Bridges open adjacent canyons. Mine limits and
-            scores are enforced automatically.
-          </p>
-          {gameOver && (
-            <div className="end-state">
-              <TriangleAlert />
-              <strong>Surface evacuation triggered</strong>
-              <span>Highest score wins.</span>
+            <div className="action-status">
+              <strong>{action ? action.label : 'Awaiting command'}</strong>
+              <span>
+                {action
+                  ? `${action.kind === 'bridge' ? placedBridges.length : stepsUsed} / ${action.amount} ${action.kind === 'bridge' ? 'placed' : 'spaces'}`
+                  : instructions}
+              </span>
             </div>
-          )}
-        </aside>
+            {!actionResolved && action && (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  disabled={
+                    action.kind === 'drone' ||
+                    (action.kind === 'crawler'
+                      ? stepsUsed === 0
+                      : placedBridges.length === 0)
+                  }
+                  onClick={undoStep}
+                >
+                  <Undo2 />
+                  Undo
+                </Button>
+                <Button
+                  disabled={
+                    action.kind === 'crawler' || action.kind === 'drone'
+                      ? stepsUsed === 0
+                      : placedBridges.length === 0
+                  }
+                  onClick={resolveAction}
+                >
+                  Resolve action
+                </Button>
+              </div>
+            )}
+            {actionResolved && claimable.length > 0 && (
+              <div className="claim-panel">
+                <p className="eyebrow">Eligible mine claims</p>
+                {claimable.map((index) => (
+                  <Button
+                    key={index}
+                    variant="secondary"
+                    onClick={() => claimMine(index)}
+                  >
+                    Claim {terrainLabel[board[index].terrain]} +
+                    {board[index].terrain === 'high' ? 3 : 1}
+                  </Button>
+                ))}
+              </div>
+            )}
+            <Button
+              className="mt-4 w-full"
+              size="lg"
+              disabled={!actionResolved || gameOver}
+              onClick={endTurn}
+            >
+              Finish turn &amp; pass
+            </Button>
+            <p className="muted mt-3">
+              Crawler routes use mapped, passable spaces. Drone routes reveal
+              adjacent spaces. Bridges open adjacent canyons. Mine limits and
+              scores are enforced automatically.
+            </p>
+            {gameOver && (
+              <div className="end-state">
+                <TriangleAlert />
+                <strong>Surface evacuation triggered</strong>
+                <span>Highest score wins.</span>
+              </div>
+            )}
+          </aside>
+        </div>
       </section>
     </main>
   );
