@@ -19,14 +19,14 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 
 ### Terrain
 
-| Tile | Effect |
-|---|---|
-| Start / base | Seven connected safe hexes: one central base hex surrounded by six starting hexes. |
-| Plain | Explored, traversable terrain with no resource value. |
-| Canyon | Blocks crawlers until a bridge spans the canyon. |
-| Low-value mine | Worth 1 point per claim; may be claimed by up to three different explorers. |
-| High-value mine | Worth 3 points; may be claimed once, after which its resources are exhausted. |
-| Volcano | Impassable to crawlers. When the configured final volcano is revealed, the game ends immediately. |
+| Tile            | Effect                                                                                            |
+| --------------- | ------------------------------------------------------------------------------------------------- |
+| Start / base    | Seven connected safe hexes: one central base hex surrounded by six starting hexes.                |
+| Plain           | Explored, traversable terrain with no resource value.                                             |
+| Canyon          | Blocks crawlers until a bridge spans the canyon.                                                  |
+| Low-value mine  | Worth 1 point per claim; may be claimed by up to three different explorers.                       |
+| High-value mine | Worth 3 points; may be claimed once, after which its resources are exhausted.                     |
+| Volcano         | Impassable to crawlers. When the configured final volcano is revealed, the game ends immediately. |
 
 ## Setup
 
@@ -51,14 +51,14 @@ If a volcano revealed during an action reaches the configured eruption threshold
 
 ## Initial action cards
 
-| Option A | Option B |
-|---|---|
-| Move crawler 3 | Explore with drone 6 |
-| Move crawler 4 | Explore with drone 5 |
-| Move crawler 5 | Explore with drone 4 |
-| Build 2 bridge sections | Move crawler 1 |
-| Build 1 bridge section | Move crawler 2; may mine at each location |
-| Build 1 bridge section | Explore with drone 4 |
+| Option A                | Option B                                  |
+| ----------------------- | ----------------------------------------- |
+| Move crawler 3          | Explore with drone 6                      |
+| Move crawler 4          | Explore with drone 5                      |
+| Move crawler 5          | Explore with drone 4                      |
+| Build 2 bridge sections | Move crawler 1                            |
+| Build 1 bridge section  | Move crawler 2; may mine at each location |
+| Build 1 bridge section  | Explore with drone 4                      |
 
 These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current deck direction. Slide 12 records earlier exploration, so its additional or alternate faces are excluded from the active deck. The frequency of each current card type remains configurable. “Build a bridge” needs placement and supply rules before it can be fully enforced.
 
@@ -93,7 +93,7 @@ The first player must create the first useful survey route, while later players 
 
 ## Version 0.0 implementation
 
-The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four selectable action cards, randomized terrain revelation, an adjustable-by-code terrain bag, scoring controls, card replacement, and an immediate four-volcano ending. It is an interaction prototype, not yet the complete rules engine: crawler/drone positions, legal pathfinding, bridge placement, mine claim limits, per-player hands, reshuffling, and final tie handling are not enforced yet.
+The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four-card hands for each player, crawler positions, connected legal route selection, randomized drone exploration, bridge placement, enforced mine claims and scoring, card replacement, and an immediate four-volcano ending. It is still a playtest prototype: deck reshuffling, a privacy pass screen, bridge inventory, richer movement previews, and final tie handling remain to be added.
 
 ### Provisional balance defaults
 
@@ -116,11 +116,11 @@ The seven-hex starting block is surrounded by three exploration rings for two pl
 
 ## Development direction
 
-The next milestone should separate game configuration from game state, add axial hex coordinates and legal pathfinding, then enforce drone routes, crawler routes, bridges, and mine claims. After that, structured playtest logging can record win rate by seat, points per turn, tiles revealed per drone card, mine availability, bridge usage, and the turn on which eruption occurs.
+The next milestone should add the pass-and-play privacy curtain and structured playtest logging for win rate by seat, points per turn, tiles revealed per drone card, mine availability, bridge usage, and the turn on which eruption occurs.
 
 ## Digital play questions and provisional answers
 
-These defaults borrow the clarity and pacing of polished digital board-game adaptations such as *Ticket to Ride* and *Wingspan*. They do not copy either game's art or proprietary interface.
+These defaults borrow the clarity and pacing of polished digital board-game adaptations such as _Ticket to Ride_ and _Wingspan_. They do not copy either game's art or proprietary interface.
 
 1. **How much of the playing area should remain visible?** Initial answer: show the entire board on desktop whenever possible, with restrained zoom and pan controls for smaller screens. Keep player status and the volcano clock fixed around it.
 2. **How should players inspect cards?** Initial answer: display the active player's hand as a compact fan or row. Hover, focus, or tap enlarges one card. Selecting a card reveals its two mutually exclusive actions before the player commits.

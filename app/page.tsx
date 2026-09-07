@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Radio, RotateCcw, TriangleAlert } from 'lucide-react';
+import { Radio, RotateCcw, TriangleAlert, Undo2 } from 'lucide-react';
 
 type Terrain =
   | 'unknown'
@@ -12,14 +12,51 @@ type Terrain =
   | 'low'
   | 'high'
   | 'volcano';
-type Card = { id: number; left: string; right: string };
-const cards: Omit<Card, 'id'>[] = [
-  { left: 'Crawler · 3', right: 'Drone · 6' },
-  { left: 'Crawler · 4', right: 'Drone · 5' },
-  { left: 'Crawler · 5', right: 'Drone · 4' },
-  { left: 'Build · 2 bridges', right: 'Crawler · 1' },
-  { left: 'Build · 1 bridge', right: 'Crawler · 2 + mine en route' },
-  { left: 'Build · 1 bridge', right: 'Drone · 4' },
+type ActionKind = 'crawler' | 'drone' | 'bridge';
+type CardAction = {
+  kind: ActionKind;
+  amount: number;
+  mineEnRoute?: boolean;
+  label: string;
+};
+type Card = { id: number; left: CardAction; right: CardAction };
+type Tile = {
+  terrain: Terrain;
+  bridge: boolean;
+  lowClaims: number[];
+  highClaim: number | null;
+};
+
+const cardTypes: Omit<Card, 'id'>[] = [
+  {
+    left: { kind: 'crawler', amount: 3, label: 'Crawler · 3' },
+    right: { kind: 'drone', amount: 6, label: 'Drone · 6' },
+  },
+  {
+    left: { kind: 'crawler', amount: 4, label: 'Crawler · 4' },
+    right: { kind: 'drone', amount: 5, label: 'Drone · 5' },
+  },
+  {
+    left: { kind: 'crawler', amount: 5, label: 'Crawler · 5' },
+    right: { kind: 'drone', amount: 4, label: 'Drone · 4' },
+  },
+  {
+    left: { kind: 'bridge', amount: 2, label: 'Build · 2 bridges' },
+    right: { kind: 'crawler', amount: 1, label: 'Crawler · 1' },
+  },
+  {
+    left: { kind: 'bridge', amount: 1, label: 'Build · 1 bridge' },
+    right: {
+      kind: 'crawler',
+      amount: 2,
+      mineEnRoute: true,
+      label: 'Crawler · 2 + mine en route',
+    },
+  },
+  {
+    left: { kind: 'bridge', amount: 1, label: 'Build · 1 bridge' },
+    right: { kind: 'drone', amount: 4, label: 'Drone · 4' },
+  },
 ];
 const colors = ['#ffe08a', '#79d2a6', '#82b9ff', '#ef91b8'];
 const playerNames = ['Astra', 'Beacon', 'Cosmo', 'Dawn'];
@@ -42,6 +79,13 @@ const terrainMark: Record<Terrain, string> = {
   volcano: '!',
 };
 const hexSize = 42;
+const startCoordinates = [
+  { q: 0, r: 0 },
+  { q: 0, r: -1 },
+  { q: 1, r: -1 },
+  { q: 1, r: 0 },
+];
+
 function makeHexes(radius: number) {
   return Array.from({ length: radius * 2 + 1 }, (_, q) => q - radius).flatMap(
     (q) =>
@@ -78,18 +122,43 @@ function shuffledBag(radius: number) {
     ] as Terrain[]
   ).sort(() => Math.random() - 0.5);
 }
-function makeBoard(radius: number) {
-  return makeHexes(radius).map(({ q, r }) =>
-    Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) <= 1
-      ? 'start'
-      : 'unknown',
-  ) as Terrain[];
-}
-function makeHand(seed = 0): Card[] {
-  return Array.from({ length: 4 }, (_, i) => ({
-    ...cards[(i + seed) % cards.length],
-    id: seed * 10 + i,
+function makeBoard(radius: number): Tile[] {
+  return makeHexes(radius).map(({ q, r }) => ({
+    terrain:
+      Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) <= 1
+        ? 'start'
+        : 'unknown',
+    bridge: false,
+    lowClaims: [],
+    highClaim: null,
   }));
+}
+function makeCard(seed: number, offset: number): Card {
+  return {
+    ...cardTypes[(seed + offset) % cardTypes.length],
+    id: seed * 100 + offset,
+  };
+}
+function makeHands(players: number): Card[][] {
+  return Array.from({ length: players }, (_, p) =>
+    Array.from({ length: 4 }, (_, i) => makeCard(p * 2, i)),
+  );
+}
+function coordinateIndex(
+  hexes: { q: number; r: number }[],
+  q: number,
+  r: number,
+) {
+  return hexes.findIndex((hex) => hex.q === q && hex.r === r);
+}
+function adjacent(a: { q: number; r: number }, b: { q: number; r: number }) {
+  return (
+    Math.max(
+      Math.abs(a.q - b.q),
+      Math.abs(a.r - b.r),
+      Math.abs(-a.q - a.r - (-b.q - b.r)),
+    ) === 1
+  );
 }
 
 export default function Home() {
@@ -104,56 +173,201 @@ export default function Home() {
       halfHeight = hexSize * (1.5 * totalRadius + 1);
     return `${-halfWidth} ${-halfHeight} ${halfWidth * 2} ${halfHeight * 2}`;
   }, [totalRadius]);
-  const [board, setBoard] = useState<Terrain[]>(() => makeBoard(5)),
-    [bag, setBag] = useState<Terrain[]>(() => shuffledBag(5));
-  const [hand, setHand] = useState<Card[]>(() => makeHand()),
-    [selected, setSelected] = useState<number | null>(null);
-  const [scores, setScores] = useState([0, 0, 0, 0]);
-  const volcanoes = board.filter((t) => t === 'volcano').length,
+  const [board, setBoard] = useState<Tile[]>(() => makeBoard(5)),
+    [bag, setBag] = useState<Terrain[]>(() => shuffledBag(5)),
+    [hands, setHands] = useState<Card[][]>(() => makeHands(3));
+  const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
+    const initialHexes = makeHexes(5);
+    return startCoordinates.map(({ q, r }) =>
+      coordinateIndex(initialHexes, q, r),
+    );
+  });
+  const [selectedCard, setSelectedCard] = useState<number | null>(null),
+    [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null),
+    [path, setPath] = useState<number[]>([]),
+    [placedBridges, setPlacedBridges] = useState<number[]>([]),
+    [actionResolved, setActionResolved] = useState(false),
+    [claimable, setClaimable] = useState<number[]>([]),
+    [scores, setScores] = useState([0, 0, 0, 0]);
+  const selected =
+    selectedCard === null
+      ? null
+      : (hands[active]?.find((card) => card.id === selectedCard) ?? null);
+  const action = selected && selectedSide ? selected[selectedSide] : null;
+  const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length,
     gameOver = volcanoes >= 4,
-    explored = board.filter((t) => t !== 'unknown').length;
-  const status = useMemo(
-    () =>
-      gameOver
-        ? 'Mission ended — compare scores.'
-        : `${playerNames[active]}'s turn`,
-    [active, gameOver],
-  );
-  function reveal(index: number) {
+    explored = board.filter((tile) => tile.terrain !== 'unknown').length,
+    stepsUsed = Math.max(0, path.length - 1);
+  const status = gameOver
+    ? 'Mission ended — compare scores.'
+    : `${playerNames[active]}'s turn`;
+
+  function clearAction(cardId: number | null = selectedCard) {
+    setSelectedCard(cardId);
+    setSelectedSide(null);
+    setPath([]);
+    setPlacedBridges([]);
+    setActionResolved(false);
+    setClaimable([]);
+  }
+  function chooseCard(cardId: number) {
+    clearAction(cardId);
+  }
+  function chooseSide(side: 'left' | 'right', card: Card) {
+    const next = card[side];
+    setSelectedCard(card.id);
+    setSelectedSide(side);
+    setPath(
+      next.kind === 'crawler' || next.kind === 'drone'
+        ? [crawlerPositions[active]]
+        : [],
+    );
+    setPlacedBridges([]);
+    setActionResolved(false);
+    setClaimable([]);
+  }
+  function revealTile(index: number) {
+    if (board[index].terrain !== 'unknown' || !bag.length) return;
+    const terrain = bag[0];
+    setBoard((current) =>
+      current.map((tile, i) => (i === index ? { ...tile, terrain } : tile)),
+    );
+    setBag((current) => current.slice(1));
+  }
+  function tileIsLegal(index: number) {
+    if (!action || actionResolved || gameOver) return false;
+    if (action.kind === 'bridge')
+      return (
+        board[index].terrain === 'canyon' &&
+        !board[index].bridge &&
+        adjacent(hexes[crawlerPositions[active]], hexes[index]) &&
+        !placedBridges.includes(index) &&
+        placedBridges.length < action.amount
+      );
     if (
+      !path.length ||
+      stepsUsed >= action.amount ||
+      !adjacent(hexes[path[path.length - 1]], hexes[index])
+    )
+      return false;
+    if (action.kind === 'drone') return true;
+    const terrain = board[index].terrain;
+    return (
+      terrain !== 'unknown' &&
+      terrain !== 'volcano' &&
+      (terrain !== 'canyon' || board[index].bridge) &&
+      !crawlerPositions.some(
+        (position, player) => player !== active && position === index,
+      )
+    );
+  }
+  function handleTile(index: number) {
+    if (!tileIsLegal(index) || !action) return;
+    if (action.kind === 'bridge') {
+      setPlacedBridges((current) => [...current, index]);
+      return;
+    }
+    setPath((current) => [...current, index]);
+    if (action.kind === 'drone') revealTile(index);
+  }
+  function undoStep() {
+    if (!action || actionResolved) return;
+    if (action.kind === 'crawler')
+      setPath((current) =>
+        current.length > 1 ? current.slice(0, -1) : current,
+      );
+    if (action.kind === 'bridge')
+      setPlacedBridges((current) => current.slice(0, -1));
+  }
+  function resolveAction() {
+    if (
+      !action ||
       gameOver ||
-      board[index] !== 'unknown' ||
-      selected === null ||
-      !bag.length
+      actionResolved ||
+      (action.kind !== 'bridge' && stepsUsed === 0) ||
+      (action.kind === 'bridge' && placedBridges.length === 0)
     )
       return;
-    setBoard((c) => c.map((t, i) => (i === index ? bag[0] : t)));
-    setBag((c) => c.slice(1));
+    if (action.kind === 'bridge')
+      setBoard((current) =>
+        current.map((tile, i) =>
+          placedBridges.includes(i) ? { ...tile, bridge: true } : tile,
+        ),
+      );
+    if (action.kind === 'crawler') {
+      const destination = path[path.length - 1];
+      setCrawlerPositions((current) =>
+        current.map((position, player) =>
+          player === active ? destination : position,
+        ),
+      );
+      const possible = (
+        action.mineEnRoute ? path.slice(1) : [destination]
+      ).filter((index) => {
+        const tile = board[index];
+        return (
+          (tile.terrain === 'low' &&
+            !tile.lowClaims.includes(active) &&
+            tile.lowClaims.length < 3) ||
+          (tile.terrain === 'high' && tile.highClaim === null)
+        );
+      });
+      setClaimable([...new Set(possible)]);
+    }
+    setActionResolved(true);
   }
-  function scoreMine(value: number) {
-    if (!gameOver)
-      setScores((c) => c.map((s, i) => (i === active ? s + value : s)));
+  function claimMine(index: number) {
+    if (!actionResolved || !claimable.includes(index) || gameOver) return;
+    const terrain = board[index].terrain,
+      points = terrain === 'high' ? 3 : 1;
+    setBoard((current) =>
+      current.map((tile, i) =>
+        i !== index
+          ? tile
+          : terrain === 'high'
+            ? { ...tile, highClaim: active }
+            : { ...tile, lowClaims: [...tile.lowClaims, active] },
+      ),
+    );
+    setScores((current) =>
+      current.map((score, player) =>
+        player === active ? score + points : score,
+      ),
+    );
+    setClaimable((current) =>
+      current.filter((candidate) => candidate !== index),
+    );
   }
   function endTurn() {
-    if (selected === null || gameOver) return;
-    const fresh = { ...cards[(turn + active) % cards.length], id: Date.now() };
-    setHand((c) => c.map((card) => (card.id === selected ? fresh : card)));
-    setSelected(null);
+    if (!selected || !actionResolved || gameOver) return;
+    const replacement = makeCard(turn + active + 4, 0);
+    setHands((current) =>
+      current.map((hand, player) =>
+        player === active
+          ? hand.map((card) => (card.id === selected.id ? replacement : card))
+          : hand,
+      ),
+    );
     setActive((active + 1) % players);
-    setTurn((v) => v + 1);
+    setTurn((value) => value + 1);
+    clearAction(null);
   }
   function setupGame(count: number) {
+    const radius = count + 2,
+      nextHexes = makeHexes(radius);
     setPlayers(count);
     setActive(0);
     setTurn(1);
-    setBoard(makeBoard(count + 2));
-    setBag(shuffledBag(count + 2));
-    setHand(makeHand());
-    setSelected(null);
+    setBoard(makeBoard(radius));
+    setBag(shuffledBag(radius));
+    setHands(makeHands(count));
+    setCrawlerPositions(
+      startCoordinates
+        .slice(0, count)
+        .map(({ q, r }) => coordinateIndex(nextHexes, q, r)),
+    );
     setScores([0, 0, 0, 0]);
-  }
-  function reset() {
-    setupGame(players);
+    clearAction(null);
   }
   useEffect(() => {
     type ToolContext = {
@@ -203,6 +417,19 @@ export default function Home() {
     ).catch(() => {});
     return () => lifecycle.abort();
   }, []);
+
+  const instructions = !selected
+    ? 'Choose one card from your hand.'
+    : !selectedSide
+      ? 'Choose the left or right action.'
+      : actionResolved
+        ? claimable.length
+          ? 'Claim any eligible mine, or finish the turn.'
+          : 'Action complete. Finish the turn.'
+        : action?.kind === 'bridge'
+          ? `Choose up to ${action.amount} adjacent canyon ${action.amount === 1 ? 'tile' : 'tiles'}.`
+          : `Trace a connected ${action?.kind} route of up to ${action?.amount} spaces.`;
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <header className="border-b border-white/10 bg-[#11100f]/90 px-4 py-3 backdrop-blur md:px-7">
@@ -221,14 +448,18 @@ export default function Home() {
           <div className="flex items-center gap-2 text-sm">
             <span className="status-dot" />
             {status}
-            <Button variant="outline" size="sm" onClick={reset}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setupGame(players)}
+            >
               <RotateCcw />
               Reset
             </Button>
           </div>
         </div>
       </header>
-      <section className="mx-auto grid max-w-[1500px] gap-4 p-4 md:p-7 xl:grid-cols-[250px_minmax(540px,1fr)_330px]">
+      <section className="mx-auto grid max-w-[1500px] gap-4 p-4 md:p-7 xl:grid-cols-[250px_minmax(540px,1fr)_350px]">
         <aside className="panel order-2 xl:order-1">
           <p className="eyebrow">Crew manifest</p>
           <div className="mb-5 grid grid-cols-3 gap-2">
@@ -325,37 +556,81 @@ export default function Home() {
           <svg
             className="hex-grid"
             viewBox={boardViewBox}
-            role="group"
             aria-label={`${board.length} connected hexagonal spaces`}
           >
             {board.map((tile, i) => {
-              const { x, y } = hexCenter(hexes[i].q, hexes[i].r);
-              const enabled = tile === 'unknown' && selected !== null;
+              const { x, y } = hexCenter(hexes[i].q, hexes[i].r),
+                enabled = tileIsLegal(i),
+                routeOrder = path.indexOf(i),
+                bridgePreview = placedBridges.includes(i),
+                occupants = crawlerPositions
+                  .map((position, player) =>
+                    position === i && player < players ? player : -1,
+                  )
+                  .filter((player) => player >= 0),
+                claimCount =
+                  tile.terrain === 'low'
+                    ? tile.lowClaims.length
+                    : tile.highClaim === null
+                      ? 0
+                      : 1;
               return (
                 <g
                   key={i}
-                  className={`hex ${tile} ${enabled ? 'enabled' : ''}`}
-                  role="button"
+                  className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''} ${routeOrder >= 0 ? 'route' : ''}`}
                   tabIndex={enabled ? 0 : -1}
                   aria-disabled={!enabled}
-                  aria-label={`${terrainLabel[tile]} sector ${i + 1}`}
-                  onClick={() => reveal(i)}
+                  aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}`}
+                  onClick={() => handleTile(i)}
                   onKeyDown={(e) => {
                     if (enabled && (e.key === 'Enter' || e.key === ' ')) {
                       e.preventDefault();
-                      reveal(i);
+                      handleTile(i);
                     }
                   }}
                 >
                   <polygon points={hexPoints(x, y)} />
-                  {terrainMark[tile] && (
+                  {terrainMark[tile.terrain] && (
                     <text
                       x={x}
-                      y={y}
+                      y={y - (occupants.length ? 10 : 0)}
                       textAnchor="middle"
                       dominantBaseline="central"
                     >
-                      {terrainMark[tile]}
+                      {terrainMark[tile.terrain]}
+                    </text>
+                  )}
+                  {(tile.bridge || bridgePreview) && (
+                    <text
+                      className="bridge-mark"
+                      x={x}
+                      y={y + 12}
+                      textAnchor="middle"
+                    >
+                      ═
+                    </text>
+                  )}
+                  {routeOrder > 0 && (
+                    <circle className="route-dot" cx={x} cy={y + 24} r="5" />
+                  )}
+                  {occupants.map((player, offset) => (
+                    <circle
+                      key={player}
+                      className="crawler-token"
+                      cx={x - (occupants.length - 1) * 7 + offset * 14}
+                      cy={y + 21}
+                      r="7"
+                      fill={colors[player]}
+                    />
+                  ))}
+                  {claimCount > 0 && (
+                    <text
+                      className="claim-mark"
+                      x={x + 23}
+                      y={y - 18}
+                      textAnchor="middle"
+                    >
+                      ◆{claimCount}
                     </text>
                   )}
                 </g>
@@ -364,47 +639,103 @@ export default function Home() {
           </svg>
           <p className="board-note">
             <Radio />
-            Select a card, then choose an unexplored hex to simulate drone
-            discovery.
+            {instructions}
           </p>
         </section>
         <aside className="panel order-3">
-          <p className="eyebrow">Command hand · choose one card</p>
+          <p className="eyebrow">
+            {playerNames[active]}’s hand · choose one card
+          </p>
           <div className="space-y-2">
-            {hand.map((card) => (
-              <button
+            {hands[active]?.map((card) => (
+              <div
                 key={card.id}
-                className={`action-card ${selected === card.id ? 'selected' : ''}`}
-                onClick={() => setSelected(card.id)}
+                className={`action-card ${selectedCard === card.id ? 'selected' : ''}`}
               >
-                <span>{card.left}</span>
+                <button
+                  onClick={() => chooseCard(card.id)}
+                  aria-label={`Select card: ${card.left.label} or ${card.right.label}`}
+                  className="card-select-overlay"
+                />
+                <button
+                  className={`card-half ${selectedCard === card.id && selectedSide === 'left' ? 'chosen' : ''}`}
+                  onClick={() => chooseSide('left', card)}
+                >
+                  {card.left.label}
+                </button>
                 <em>OR</em>
-                <span>{card.right}</span>
-              </button>
+                <button
+                  className={`card-half right ${selectedCard === card.id && selectedSide === 'right' ? 'chosen' : ''}`}
+                  onClick={() => chooseSide('right', card)}
+                >
+                  {card.right.label}
+                </button>
+              </div>
             ))}
           </div>
-          <div className="divider" />
-          <p className="eyebrow">Prototype mining controls</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => scoreMine(1)}>
-              Claim low +1
-            </Button>
-            <Button variant="secondary" onClick={() => scoreMine(3)}>
-              Claim high +3
-            </Button>
+          <div className="action-status">
+            <strong>{action ? action.label : 'Awaiting command'}</strong>
+            <span>
+              {action
+                ? `${action.kind === 'bridge' ? placedBridges.length : stepsUsed} / ${action.amount} ${action.kind === 'bridge' ? 'placed' : 'spaces'}`
+                : instructions}
+            </span>
           </div>
-          <p className="muted mt-3">
-            Movement paths and claims will be enforced in the next rules-engine
-            stage. These controls let you test scoring now.
-          </p>
+          {!actionResolved && action && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                disabled={
+                  action.kind === 'drone' ||
+                  (action.kind === 'crawler'
+                    ? stepsUsed === 0
+                    : placedBridges.length === 0)
+                }
+                onClick={undoStep}
+              >
+                <Undo2 />
+                Undo
+              </Button>
+              <Button
+                disabled={
+                  action.kind === 'crawler' || action.kind === 'drone'
+                    ? stepsUsed === 0
+                    : placedBridges.length === 0
+                }
+                onClick={resolveAction}
+              >
+                Resolve action
+              </Button>
+            </div>
+          )}
+          {actionResolved && claimable.length > 0 && (
+            <div className="claim-panel">
+              <p className="eyebrow">Eligible mine claims</p>
+              {claimable.map((index) => (
+                <Button
+                  key={index}
+                  variant="secondary"
+                  onClick={() => claimMine(index)}
+                >
+                  Claim {terrainLabel[board[index].terrain]} +
+                  {board[index].terrain === 'high' ? 3 : 1}
+                </Button>
+              ))}
+            </div>
+          )}
           <Button
-            className="mt-5 w-full"
+            className="mt-4 w-full"
             size="lg"
-            disabled={selected === null || gameOver}
+            disabled={!actionResolved || gameOver}
             onClick={endTurn}
           >
-            Discard card &amp; end turn
+            Finish turn &amp; pass
           </Button>
+          <p className="muted mt-3">
+            Crawler routes use mapped, passable spaces. Drone routes reveal
+            adjacent spaces. Bridges open adjacent canyons. Mine limits and
+            scores are enforced automatically.
+          </p>
           {gameOver && (
             <div className="end-state">
               <TriangleAlert />
