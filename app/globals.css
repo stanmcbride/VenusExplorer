@@ -374,12 +374,7 @@ button {
 .claim-panel .eyebrow {
   margin-bottom: 0.2rem;
 }
-.hex.route polygon {
-  stroke: #ffe08a;
-  stroke-width: 4;
-}
-.route-dot {
-  fill: #ffe08a;
+.crawler-route-overlay {
   pointer-events: none;
 }
 .crawler-token {

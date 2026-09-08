@@ -209,6 +209,15 @@ export default function Home() {
   const status = gameOver
     ? 'Mission ended — compare scores.'
     : `${playerNames[active]}'s turn`;
+  const crawlerRoutePoints =
+    action?.kind === 'crawler'
+      ? path
+          .map((index) => {
+            const point = hexCenter(hexes[index].q, hexes[index].r);
+            return `${point.x},${point.y}`;
+          })
+          .join(' ')
+      : '';
 
   function clearAction(cardId: number | null = selectedCard) {
     setSelectedCard(cardId);
@@ -567,7 +576,6 @@ export default function Home() {
               {board.map((tile, i) => {
                 const { x, y } = hexCenter(hexes[i].q, hexes[i].r),
                   enabled = tileIsLegal(i),
-                  routeOrder = path.indexOf(i),
                   bridgePreview = placedBridges.includes(i),
                   occupants = crawlerPositions
                     .map((position, player) =>
@@ -583,7 +591,7 @@ export default function Home() {
                 return (
                   <g
                     key={i}
-                    className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''} ${routeOrder >= 0 ? 'route' : ''}`}
+                    className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''}`}
                     tabIndex={enabled ? 0 : -1}
                     aria-disabled={!enabled}
                     aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}`}
@@ -616,9 +624,6 @@ export default function Home() {
                         ═
                       </text>
                     )}
-                    {routeOrder > 0 && (
-                      <circle className="route-dot" cx={x} cy={y + 24} r="5" />
-                    )}
                     {occupants.map((player, offset) => (
                       <circle
                         key={player}
@@ -642,6 +647,36 @@ export default function Home() {
                   </g>
                 );
               })}
+              {action?.kind === 'crawler' && path.length > 0 && (
+                <g className="crawler-route-overlay" aria-hidden="true">
+                  {path.length > 1 && (
+                    <polyline
+                      points={crawlerRoutePoints}
+                      fill="none"
+                      stroke={colors[active]}
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+                  {path.map((index, step) => {
+                    const point = hexCenter(hexes[index].q, hexes[index].r);
+                    return (
+                      <circle
+                        key={`${index}-${step}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="6"
+                        fill={colors[active]}
+                        stroke="#17110a"
+                        strokeWidth="2"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })}
+                </g>
+              )}
             </svg>
             <p className="board-note">
               <Radio />

@@ -77,6 +77,7 @@ These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current
 - May traverse plains and mine tiles whether claimed, unclaimed, or exhausted.
 - Cannot traverse a canyon unless a bridge has been built across it.
 - Cannot enter or cross a volcano.
+- May use every base tile unless another crawler occupies it. A crawler cannot move through or finish on another crawler's space; drones may fly across occupied base tiles.
 - May stop before using all available movement.
 
 ## Mining and scoring
