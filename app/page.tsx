@@ -88,7 +88,7 @@ const terrainMark: Record<Terrain, string> = {
   volcano: '!',
 };
 const hexSize = 42;
-const defaultTileMix: TileMix = { plain: 40, canyon: 17, low: 23, high: 12 };
+const defaultTileMix: TileMix = { plain: 30, canyon: 25, low: 25, high: 12 };
 const adjustableTerrains = ['plain', 'canyon', 'low', 'high'] as const;
 const baseRingCoordinates = [
   { q: 0, r: -1 },
