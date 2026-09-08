@@ -403,6 +403,59 @@ button {
   display: grid;
   gap: 0.6rem;
 }
+.pass-dialog {
+  inset: 0 !important;
+  display: grid;
+  width: 100vw !important;
+  height: 100dvh;
+  max-width: none !important;
+  transform: none !important;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: radial-gradient(
+    circle at center,
+    #3a2216 0,
+    #191715 45%,
+    #0f0e0d 100%
+  );
+}
+.pass-dialog-card {
+  display: grid;
+  width: min(420px, calc(100vw - 2rem));
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+  border: 1px solid;
+  border-radius: 0.8rem;
+  background: #1c1916;
+  box-shadow: 0 28px 90px #000c;
+}
+.pass-dialog-card .eyebrow {
+  margin: 0;
+}
+.pass-dialog-card [data-slot='dialog-header'] {
+  align-items: center;
+}
+.pass-dialog-card [data-slot='dialog-title'] {
+  font-size: 1.6rem;
+}
+.pass-dialog-card [data-slot='dialog-description'] {
+  color: #b9aea1;
+  line-height: 1.5;
+}
+.pass-player-mark {
+  display: grid;
+  width: 74px;
+  height: 74px;
+  margin: 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #17110a;
+  font-size: 2rem;
+  font-weight: 900;
+  box-shadow: 0 0 32px currentColor;
+}
 .movement-route-overlay {
   pointer-events: none;
 }

@@ -46,7 +46,8 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 5. If their crawler reaches an eligible mine, a claim prompt appears; they may claim or skip it.
 6. The played card goes to the discard pile.
 7. The player draws back to four cards.
-8. Play passes clockwise.
+8. Play passes clockwise behind a full-screen privacy curtain that hides the board and every hand.
+9. The next player explicitly reveals their four-card hand to begin their turn.
 
 If a volcano revealed during an action reaches the configured eruption threshold, play ends immediately—even if movement or the current turn would otherwise continue.
 

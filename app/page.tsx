@@ -229,6 +229,7 @@ export default function Home() {
     [actionResolved, setActionResolved] = useState(false),
     [claimable, setClaimable] = useState<number[]>([]),
     [claimDialogOpen, setClaimDialogOpen] = useState(false),
+    [passScreen, setPassScreen] = useState(false),
     [scores, setScores] = useState([0, 0, 0, 0]);
   const selected =
     selectedCard === null
@@ -415,6 +416,7 @@ export default function Home() {
     setActive((active + 1) % players);
     setTurn((value) => value + 1);
     clearAction(null);
+    setPassScreen(true);
   }
   function setupGame(count: number) {
     const radius = count + 2,
@@ -432,6 +434,7 @@ export default function Home() {
     );
     setScores([0, 0, 0, 0]);
     clearAction(null);
+    setPassScreen(false);
   }
   function updateTileMix(changed: keyof TileMix, value: number) {
     const nextValue = Math.max(0, Math.min(92, value));
@@ -522,6 +525,7 @@ export default function Home() {
             setActionResolved(false);
             setClaimable([]);
             setClaimDialogOpen(false);
+            setPassScreen(false);
             return {
               status: 'ready',
               playerCount: value,
@@ -906,6 +910,33 @@ export default function Home() {
               Skip remaining claims
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={passScreen}>
+        <DialogContent showCloseButton={false} className="pass-dialog">
+          <div
+            className="pass-dialog-card"
+            style={{ borderColor: colors[active] }}
+          >
+            <p className="eyebrow">Turn complete</p>
+            <DialogHeader>
+              <DialogTitle>Pass to {playerNames[active]}</DialogTitle>
+              <DialogDescription>
+                Hand the device to {playerNames[active]}. Only the next explorer
+                should reveal their cards.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              className="pass-player-mark"
+              style={{ background: colors[active] }}
+              aria-hidden="true"
+            >
+              {playerNames[active].charAt(0)}
+            </div>
+            <Button size="lg" onClick={() => setPassScreen(false)}>
+              Reveal {playerNames[active]}&apos;s hand
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
       <section className="dev-controls" aria-labelledby="dev-controls-title">
