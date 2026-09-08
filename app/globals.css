@@ -132,6 +132,7 @@ button {
 }
 .volcano-track {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 0.75rem;
 }
@@ -418,7 +419,77 @@ button {
   font-size: 0.78rem;
   color: #d7a991;
 }
+.dev-controls {
+  max-width: 1500px;
+  margin: 0 auto 2rem;
+  padding: 1.25rem;
+  border: 1px dashed #806c52;
+  border-radius: 0.75rem;
+  background: #151311f2;
+}
+.dev-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.dev-heading h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.mix-sliders {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.mix-slider,
+.volcano-guideline {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  border: 1px solid #3f3932;
+  border-radius: 0.5rem;
+  background: #211e1a;
+}
+.mix-slider > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.mix-slider output,
+.volcano-guideline strong {
+  color: #ffcf6c;
+}
+.mix-slider input {
+  width: 100%;
+  accent-color: #ffb21d;
+}
+.mix-slider small,
+.volcano-guideline small {
+  color: #aaa096;
+  line-height: 1.35;
+}
+.volcano-guideline {
+  align-content: center;
+  border-color: #8c432e;
+  background: #2a1914;
+}
+.volcano-guideline strong {
+  font-size: 1.6rem;
+  color: #ff7b42;
+}
 @media (max-width: 760px) {
+  .dev-controls {
+    margin: 0 1rem 1rem;
+  }
+  .dev-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mix-sliders {
+    grid-template-columns: 1fr;
+  }
   .hand-cards {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }

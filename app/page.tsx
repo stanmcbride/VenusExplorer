@@ -26,6 +26,7 @@ type Tile = {
   lowClaims: number[];
   highClaim: number | null;
 };
+type TileMix = Record<'plain' | 'canyon' | 'low' | 'high', number>;
 
 const cardTypes: Omit<Card, 'id'>[] = [
   {
@@ -79,6 +80,8 @@ const terrainMark: Record<Terrain, string> = {
   volcano: '!',
 };
 const hexSize = 42;
+const defaultTileMix: TileMix = { plain: 40, canyon: 17, low: 23, high: 12 };
+const adjustableTerrains = ['plain', 'canyon', 'low', 'high'] as const;
 const baseRingCoordinates = [
   { q: 0, r: -1 },
   { q: 1, r: -1 },
@@ -107,20 +110,39 @@ function hexPoints(x: number, y: number) {
     return `${x + hexSize * Math.cos(a)},${y + hexSize * Math.sin(a)}`;
   }).join(' ');
 }
-function shuffledBag(radius: number) {
-  const spaces = 1 + 3 * radius * (radius + 1) - 7,
-    safeTiles = spaces - 4;
-  const plains = Math.round((safeTiles * 16) / 37),
-    canyons = Math.round((safeTiles * 7) / 37),
-    lows = Math.round((safeTiles * 9) / 37),
-    highs = safeTiles - plains - canyons - lows;
+function terrainCounts(radius: number, mix: TileMix) {
+  const spaces = 1 + 3 * radius * (radius + 1) - 7;
+  const volcano = Math.max(1, Math.round(spaces * 0.08));
+  const adjustableSpaces = spaces - volcano;
+  const weighted = adjustableTerrains.map((terrain) => ({
+    terrain,
+    raw: (adjustableSpaces * mix[terrain]) / 92,
+  }));
+  const counts = Object.fromEntries(
+    weighted.map(({ terrain, raw }) => [terrain, Math.floor(raw)]),
+  ) as TileMix;
+  let remainder =
+    adjustableSpaces -
+    adjustableTerrains.reduce((sum, terrain) => sum + counts[terrain], 0);
+  [...weighted]
+    .sort((a, b) => b.raw - Math.floor(b.raw) - (a.raw - Math.floor(a.raw)))
+    .forEach(({ terrain }) => {
+      if (remainder > 0) {
+        counts[terrain] += 1;
+        remainder -= 1;
+      }
+    });
+  return { ...counts, volcano };
+}
+function shuffledBag(radius: number, mix: TileMix = defaultTileMix) {
+  const counts = terrainCounts(radius, mix);
   return (
     [
-      ...Array(plains).fill('plain'),
-      ...Array(canyons).fill('canyon'),
-      ...Array(lows).fill('low'),
-      ...Array(highs).fill('high'),
-      ...Array(4).fill('volcano'),
+      ...Array(counts.plain).fill('plain'),
+      ...Array(counts.canyon).fill('canyon'),
+      ...Array(counts.low).fill('low'),
+      ...Array(counts.high).fill('high'),
+      ...Array(counts.volcano).fill('volcano'),
     ] as Terrain[]
   ).sort(() => Math.random() - 0.5);
 }
@@ -181,8 +203,9 @@ export default function Home() {
       halfHeight = hexSize * (1.5 * totalRadius + 1);
     return `${-halfWidth} ${-halfHeight} ${halfWidth * 2} ${halfHeight * 2}`;
   }, [totalRadius]);
+  const [tileMix, setTileMix] = useState<TileMix>(defaultTileMix);
   const [board, setBoard] = useState<Tile[]>(() => makeBoard(5)),
-    [bag, setBag] = useState<Terrain[]>(() => shuffledBag(5)),
+    [bag, setBag] = useState<Terrain[]>(() => shuffledBag(5, defaultTileMix)),
     [hands, setHands] = useState<Card[][]>(() => makeHands(3));
   const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
     const initialHexes = makeHexes(5);
@@ -202,8 +225,10 @@ export default function Home() {
       ? null
       : (hands[active]?.find((card) => card.id === selectedCard) ?? null);
   const action = selected && selectedSide ? selected[selectedSide] : null;
+  const currentCounts = terrainCounts(totalRadius, tileMix);
+  const volcanoTarget = currentCounts.volcano;
   const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length,
-    gameOver = volcanoes >= 4,
+    gameOver = volcanoes >= volcanoTarget,
     explored = board.filter((tile) => tile.terrain !== 'unknown').length,
     stepsUsed = Math.max(0, path.length - 1);
   const status = gameOver
@@ -376,7 +401,7 @@ export default function Home() {
     setActive(0);
     setTurn(1);
     setBoard(makeBoard(radius));
-    setBag(shuffledBag(radius));
+    setBag(shuffledBag(radius, tileMix));
     setHands(makeHands(count));
     setCrawlerPositions(
       startingCoordinates(count).map(({ q, r }) =>
@@ -385,6 +410,36 @@ export default function Home() {
     );
     setScores([0, 0, 0, 0]);
     clearAction(null);
+  }
+  function updateTileMix(changed: keyof TileMix, value: number) {
+    const nextValue = Math.max(0, Math.min(92, value));
+    const others = adjustableTerrains.filter((terrain) => terrain !== changed);
+    const remaining = 92 - nextValue;
+    const previousTotal = others.reduce(
+      (sum, terrain) => sum + tileMix[terrain],
+      0,
+    );
+    const weighted = others.map((terrain) => {
+      const raw = previousTotal
+        ? (remaining * tileMix[terrain]) / previousTotal
+        : remaining / others.length;
+      return { terrain, raw, value: Math.floor(raw) };
+    });
+    let extras =
+      remaining - weighted.reduce((sum, item) => sum + item.value, 0);
+    [...weighted]
+      .sort((a, b) => b.raw - b.value - (a.raw - a.value))
+      .forEach((item) => {
+        if (extras > 0) {
+          item.value += 1;
+          extras -= 1;
+        }
+      });
+    setTileMix({
+      ...tileMix,
+      [changed]: nextValue,
+      ...Object.fromEntries(weighted.map((item) => [item.terrain, item.value])),
+    });
   }
   useEffect(() => {
     type ToolContext = {
@@ -421,7 +476,28 @@ export default function Home() {
               Number(value) > 4
             )
               throw new Error('playerCount must be 2, 3, or 4');
-            setupGame(Number(value));
+            const count = Number(value);
+            const radius = count + 2;
+            const nextHexes = makeHexes(radius);
+            setPlayers(count);
+            setActive(0);
+            setTurn(1);
+            setTileMix(defaultTileMix);
+            setBoard(makeBoard(radius));
+            setBag(shuffledBag(radius, defaultTileMix));
+            setHands(makeHands(count));
+            setCrawlerPositions(
+              startingCoordinates(count).map(({ q, r }) =>
+                coordinateIndex(nextHexes, q, r),
+              ),
+            );
+            setScores([0, 0, 0, 0]);
+            setSelectedCard(null);
+            setSelectedSide(null);
+            setPath([]);
+            setPlacedBridges([]);
+            setActionResolved(false);
+            setClaimable([]);
             return {
               status: 'ready',
               playerCount: value,
@@ -514,14 +590,15 @@ export default function Home() {
           <div className="divider" />
           <p className="eyebrow">Mission clock</p>
           <div className="volcano-track">
-            {[0, 1, 2, 3].map((i) => (
+            {Array.from({ length: volcanoTarget }, (_, i) => (
               <span key={i} className={i < volcanoes ? 'lit' : ''}>
                 <TriangleAlert />
               </span>
             ))}
           </div>
           <p className="muted">
-            The fourth volcano ends the mission immediately.
+            The final volcano ends the mission immediately. This board uses the
+            8% guideline: {volcanoTarget} volcano tiles.
           </p>
           <div className="stat-row">
             <span>Turn</span>
@@ -785,6 +862,51 @@ export default function Home() {
               </div>
             )}
           </aside>
+        </div>
+      </section>
+      <section className="dev-controls" aria-labelledby="dev-controls-title">
+        <div className="dev-heading">
+          <div>
+            <p className="eyebrow">Development controls</p>
+            <h2 id="dev-controls-title">Terrain bag mix</h2>
+          </div>
+          <Button variant="secondary" onClick={() => setupGame(players)}>
+            Apply mix &amp; reset game
+          </Button>
+        </div>
+        <p className="muted">
+          Adjusting one terrain type automatically rebalances the others. The
+          four sliders always total 92%; volcanoes use the remaining fixed 8%.
+        </p>
+        <div className="mix-sliders">
+          {adjustableTerrains.map((terrain) => (
+            <label className="mix-slider" key={terrain}>
+              <span>
+                <b>{terrainLabel[terrain]}</b>
+                <output>{tileMix[terrain]}%</output>
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="92"
+                step="1"
+                value={tileMix[terrain]}
+                onChange={(event) =>
+                  updateTileMix(terrain, Number(event.target.value))
+                }
+              />
+              <small>
+                {currentCounts[terrain]} tiles at {players} players
+              </small>
+            </label>
+          ))}
+          <div className="volcano-guideline">
+            <span>Volcano</span>
+            <strong>8%</strong>
+            <small>
+              2 players: 4 tiles · 3 players: 7 tiles · 4 players: 10 tiles
+            </small>
+          </div>
         </div>
       </section>
     </main>

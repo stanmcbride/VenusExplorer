@@ -94,11 +94,11 @@ The first player must create the first useful survey route, while later players 
 
 ## Version 0.0 implementation
 
-The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four-card hands for each player, crawler positions, connected legal route selection, randomized drone exploration, bridge placement, enforced mine claims and scoring, card replacement, and an immediate four-volcano ending. It is still a playtest prototype: deck reshuffling, a privacy pass screen, bridge inventory, richer movement previews, and final tie handling remain to be added.
+The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four-card hands for each player, crawler positions, connected legal route selection, randomized drone exploration, bridge placement, enforced mine claims and scoring, card replacement, a configurable development terrain mix, and an immediate final-volcano ending. It is still a playtest prototype: deck reshuffling, a privacy pass screen, bridge inventory, richer movement previews, and final tie handling remain to be added.
 
 ### Provisional balance defaults
 
-The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. The terrain bag expands to match while retaining the provisional 16:7:9:5 ratio for plains, canyons, low mines, and high mines, plus four volcanoes. The fourth volcano ends the game. The terrain mix remains a test value, not a finalized rule.
+The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. Volcanoes are fixed at 8% of non-base tiles, rounded to the nearest whole tile: 4 volcanoes for two players, 7 for three, and 10 for four. The default remaining mix is 40% plains, 17% canyons, 23% low mines, and 12% high mines. Development sliders rebalance those four values to a combined 92% and regenerate the bag when applied. These remain playtest values rather than finalized rules.
 
 ## Decisions needed next
 
