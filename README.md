@@ -31,7 +31,7 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 ## Setup
 
 1. Select the number of players and assign colors/tokens.
-2. Place crawlers on the safe central starting spaces and each player's drone with its crawler.
+2. Leave the center base hex open. Place each crawler and its drone as evenly as possible around the six outer hexes of the safe base ring: opposite for two players, every other space for three, and alternating one- and two-space gaps for four.
 3. Build and shuffle the terrain bag from the selected terrain ratios.
 4. Build and shuffle the action deck.
 5. Deal four cards to every player.

@@ -79,11 +79,13 @@ const terrainMark: Record<Terrain, string> = {
   volcano: '!',
 };
 const hexSize = 42;
-const startCoordinates = [
-  { q: 0, r: 0 },
+const baseRingCoordinates = [
   { q: 0, r: -1 },
   { q: 1, r: -1 },
   { q: 1, r: 0 },
+  { q: 0, r: 1 },
+  { q: -1, r: 1 },
+  { q: -1, r: 0 },
 ];
 
 function makeHexes(radius: number) {
@@ -151,6 +153,12 @@ function coordinateIndex(
 ) {
   return hexes.findIndex((hex) => hex.q === q && hex.r === r);
 }
+function startingCoordinates(players: number) {
+  return Array.from(
+    { length: players },
+    (_, player) => baseRingCoordinates[Math.floor((player * 6) / players)],
+  );
+}
 function adjacent(a: { q: number; r: number }, b: { q: number; r: number }) {
   return (
     Math.max(
@@ -178,7 +186,7 @@ export default function Home() {
     [hands, setHands] = useState<Card[][]>(() => makeHands(3));
   const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
     const initialHexes = makeHexes(5);
-    return startCoordinates.map(({ q, r }) =>
+    return startingCoordinates(3).map(({ q, r }) =>
       coordinateIndex(initialHexes, q, r),
     );
   });
@@ -362,9 +370,9 @@ export default function Home() {
     setBag(shuffledBag(radius));
     setHands(makeHands(count));
     setCrawlerPositions(
-      startCoordinates
-        .slice(0, count)
-        .map(({ q, r }) => coordinateIndex(nextHexes, q, r)),
+      startingCoordinates(count).map(({ q, r }) =>
+        coordinateIndex(nextHexes, q, r),
+      ),
     );
     setScores([0, 0, 0, 0]);
     clearAction(null);
