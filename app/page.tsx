@@ -224,6 +224,7 @@ export default function Home() {
   const [selectedCard, setSelectedCard] = useState<number | null>(null),
     [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null),
     [path, setPath] = useState<number[]>([]),
+    [droneDraws, setDroneDraws] = useState<(Terrain | null)[]>([]),
     [placedBridges, setPlacedBridges] = useState<number[]>([]),
     [boardTouched, setBoardTouched] = useState(false),
     [actionResolved, setActionResolved] = useState(false),
@@ -259,6 +260,7 @@ export default function Home() {
     setSelectedCard(cardId);
     setSelectedSide(null);
     setPath([]);
+    setDroneDraws([]);
     setPlacedBridges([]);
     setBoardTouched(false);
     setActionResolved(false);
@@ -280,16 +282,9 @@ export default function Home() {
         : [],
     );
     setPlacedBridges([]);
+    setDroneDraws([]);
     setActionResolved(false);
     setClaimable([]);
-  }
-  function revealTile(index: number) {
-    if (board[index].terrain !== 'unknown' || !bag.length) return;
-    const terrain = bag[0];
-    setBoard((current) =>
-      current.map((tile, i) => (i === index ? { ...tile, terrain } : tile)),
-    );
-    setBag((current) => current.slice(1));
   }
   function tileIsLegal(index: number) {
     if (!action || actionResolved || gameOver) return false;
@@ -326,7 +321,17 @@ export default function Home() {
       return;
     }
     setPath((current) => [...current, index]);
-    if (action.kind === 'drone') revealTile(index);
+    if (action.kind === 'drone') {
+      const terrain =
+        board[index].terrain === 'unknown' && bag.length ? bag[0] : null;
+      setDroneDraws((current) => [...current, terrain]);
+      if (terrain) {
+        setBoard((current) =>
+          current.map((tile, i) => (i === index ? { ...tile, terrain } : tile)),
+        );
+        setBag((current) => current.slice(1));
+      }
+    }
   }
   function undoStep() {
     if (!action || actionResolved) return;
@@ -334,6 +339,20 @@ export default function Home() {
       setPath((current) =>
         current.length > 1 ? current.slice(0, -1) : current,
       );
+    if (action.kind === 'drone' && path.length > 1) {
+      const destination = path[path.length - 1];
+      const terrain = droneDraws[droneDraws.length - 1];
+      setPath((current) => current.slice(0, -1));
+      setDroneDraws((current) => current.slice(0, -1));
+      if (terrain) {
+        setBoard((current) =>
+          current.map((tile, index) =>
+            index === destination ? { ...tile, terrain: 'unknown' } : tile,
+          ),
+        );
+        setBag((current) => [terrain, ...current]);
+      }
+    }
     if (action.kind === 'bridge')
       setPlacedBridges((current) => current.slice(0, -1));
   }
@@ -520,6 +539,7 @@ export default function Home() {
             setSelectedCard(null);
             setSelectedSide(null);
             setPath([]);
+            setDroneDraws([]);
             setPlacedBridges([]);
             setBoardTouched(false);
             setActionResolved(false);
@@ -839,10 +859,9 @@ export default function Home() {
                 <Button
                   variant="secondary"
                   disabled={
-                    action.kind === 'drone' ||
-                    (action.kind === 'crawler'
+                    action.kind === 'crawler' || action.kind === 'drone'
                       ? stepsUsed === 0
-                      : placedBridges.length === 0)
+                      : placedBridges.length === 0
                   }
                   onClick={undoStep}
                 >
