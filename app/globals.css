@@ -237,11 +237,16 @@ button {
 .hex.enabled {
   cursor: pointer;
 }
-.hex.enabled:hover polygon,
-.hex.enabled:focus-visible polygon {
-  filter: brightness(1.4);
+.hex.enabled polygon {
+  filter: brightness(1.24) drop-shadow(0 0 5px #ffb21daa);
   stroke: #ffcf6c;
   stroke-width: 3;
+}
+.hex.enabled:hover polygon,
+.hex.enabled:focus-visible polygon {
+  filter: brightness(1.5) drop-shadow(0 0 8px #ffb21d);
+  stroke: #fff1b8;
+  stroke-width: 4;
 }
 .hex.start polygon {
   fill: #d99b27;
