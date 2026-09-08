@@ -41,11 +41,12 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 
 1. The active player chooses one card from their four-card hand.
 2. They choose exactly one of the card's two actions.
-3. They resolve that action completely. Unused movement may be forfeited.
-4. If their crawler ends on an eligible mine, they may claim/mine it.
-5. The played card goes to the discard pile.
-6. The player draws back to four cards.
-7. Play passes clockwise.
+3. They begin the action on the board. The first valid board selection locks both the card and the selected half for the remainder of the turn.
+4. They resolve that action completely. Unused movement may be forfeited.
+5. If their crawler reaches an eligible mine, a claim prompt appears; they may claim or skip it.
+6. The played card goes to the discard pile.
+7. The player draws back to four cards.
+8. Play passes clockwise.
 
 If a volcano revealed during an action reaches the configured eruption threshold, play ends immediately—even if movement or the current turn would otherwise continue.
 

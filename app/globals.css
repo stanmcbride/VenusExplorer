@@ -312,6 +312,12 @@ button {
   border-color: #ffb21d;
   background: #392d1e;
 }
+.action-card.locked {
+  opacity: 0.42;
+}
+.action-card button:disabled {
+  cursor: not-allowed;
+}
 .action-card.selected {
   box-shadow:
     inset 0 4px #ffb21d,
@@ -363,6 +369,10 @@ button {
   font-size: 0.78rem;
   color: #aaa096;
 }
+.action-status small {
+  color: #e8b964;
+  font-size: 0.72rem;
+}
 .claim-panel {
   display: grid;
   gap: 0.5rem;
@@ -374,6 +384,19 @@ button {
 }
 .claim-panel .eyebrow {
   margin-bottom: 0.2rem;
+}
+.mine-dialog {
+  color: #f7f2e8;
+  background: #1c1916;
+  border: 1px solid #806c52;
+  box-shadow: 0 28px 90px #000c;
+}
+.mine-dialog [data-slot='dialog-description'] {
+  color: #b9aea1;
+}
+.mine-options {
+  display: grid;
+  gap: 0.6rem;
 }
 .crawler-route-overlay {
   pointer-events: none;

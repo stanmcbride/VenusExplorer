@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Radio, RotateCcw, TriangleAlert, Undo2 } from 'lucide-react';
 
 type Terrain =
@@ -217,8 +225,10 @@ export default function Home() {
     [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null),
     [path, setPath] = useState<number[]>([]),
     [placedBridges, setPlacedBridges] = useState<number[]>([]),
+    [boardTouched, setBoardTouched] = useState(false),
     [actionResolved, setActionResolved] = useState(false),
     [claimable, setClaimable] = useState<number[]>([]),
+    [claimDialogOpen, setClaimDialogOpen] = useState(false),
     [scores, setScores] = useState([0, 0, 0, 0]);
   const selected =
     selectedCard === null
@@ -249,13 +259,17 @@ export default function Home() {
     setSelectedSide(null);
     setPath([]);
     setPlacedBridges([]);
+    setBoardTouched(false);
     setActionResolved(false);
     setClaimable([]);
+    setClaimDialogOpen(false);
   }
   function chooseCard(cardId: number) {
+    if (boardTouched) return;
     clearAction(cardId);
   }
   function chooseSide(side: 'left' | 'right', card: Card) {
+    if (boardTouched) return;
     const next = card[side];
     setSelectedCard(card.id);
     setSelectedSide(side);
@@ -305,6 +319,7 @@ export default function Home() {
   }
   function handleTile(index: number) {
     if (!tileIsLegal(index) || !action) return;
+    setBoardTouched(true);
     if (action.kind === 'bridge') {
       setPlacedBridges((current) => [...current, index]);
       return;
@@ -354,7 +369,9 @@ export default function Home() {
           (tile.terrain === 'high' && tile.highClaim === null)
         );
       });
-      setClaimable([...new Set(possible)]);
+      const eligibleMines = [...new Set(possible)];
+      setClaimable(eligibleMines);
+      setClaimDialogOpen(eligibleMines.length > 0);
     }
     setActionResolved(true);
   }
@@ -379,6 +396,11 @@ export default function Home() {
     setClaimable((current) =>
       current.filter((candidate) => candidate !== index),
     );
+    if (claimable.length === 1) setClaimDialogOpen(false);
+  }
+  function skipMining() {
+    setClaimable([]);
+    setClaimDialogOpen(false);
   }
   function endTurn() {
     if (!selected || !actionResolved || gameOver) return;
@@ -496,8 +518,10 @@ export default function Home() {
             setSelectedSide(null);
             setPath([]);
             setPlacedBridges([]);
+            setBoardTouched(false);
             setActionResolved(false);
             setClaimable([]);
+            setClaimDialogOpen(false);
             return {
               status: 'ready',
               playerCount: value,
@@ -768,16 +792,18 @@ export default function Home() {
               {hands[active]?.map((card) => (
                 <div
                   key={card.id}
-                  className={`action-card ${selectedCard === card.id ? 'selected' : ''}`}
+                  className={`action-card ${selectedCard === card.id ? 'selected' : ''} ${boardTouched && selectedCard !== card.id ? 'locked' : ''}`}
                 >
                   <button
                     onClick={() => chooseCard(card.id)}
+                    disabled={boardTouched}
                     aria-label={`Select card: ${card.left.label} or ${card.right.label}`}
                     className="card-select-overlay"
                   />
                   <button
                     className={`card-half ${selectedCard === card.id && selectedSide === 'left' ? 'chosen' : ''}`}
                     onClick={() => chooseSide('left', card)}
+                    disabled={boardTouched}
                   >
                     {card.left.label}
                   </button>
@@ -785,6 +811,7 @@ export default function Home() {
                   <button
                     className={`card-half right ${selectedCard === card.id && selectedSide === 'right' ? 'chosen' : ''}`}
                     onClick={() => chooseSide('right', card)}
+                    disabled={boardTouched}
                   >
                     {card.right.label}
                   </button>
@@ -798,6 +825,9 @@ export default function Home() {
                   ? `${action.kind === 'bridge' ? placedBridges.length : stepsUsed} / ${action.amount} ${action.kind === 'bridge' ? 'placed' : 'spaces'}`
                   : instructions}
               </span>
+              {boardTouched && !actionResolved && (
+                <small>Card selection locked after board action began.</small>
+              )}
             </div>
             {!actionResolved && action && (
               <div className="grid grid-cols-2 gap-2">
@@ -826,25 +856,10 @@ export default function Home() {
                 </Button>
               </div>
             )}
-            {actionResolved && claimable.length > 0 && (
-              <div className="claim-panel">
-                <p className="eyebrow">Eligible mine claims</p>
-                {claimable.map((index) => (
-                  <Button
-                    key={index}
-                    variant="secondary"
-                    onClick={() => claimMine(index)}
-                  >
-                    Claim {terrainLabel[board[index].terrain]} +
-                    {board[index].terrain === 'high' ? 3 : 1}
-                  </Button>
-                ))}
-              </div>
-            )}
             <Button
               className="mt-4 w-full"
               size="lg"
-              disabled={!actionResolved || gameOver}
+              disabled={!actionResolved || claimDialogOpen || gameOver}
               onClick={endTurn}
             >
               Finish turn &amp; pass
@@ -864,6 +879,34 @@ export default function Home() {
           </aside>
         </div>
       </section>
+      <Dialog open={claimDialogOpen}>
+        <DialogContent showCloseButton={false} className="mine-dialog">
+          <DialogHeader>
+            <DialogTitle>Mine claim available</DialogTitle>
+            <DialogDescription>
+              Choose a resource claim before finishing the turn, or skip the
+              remaining opportunities.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mine-options">
+            {claimable.map((index) => (
+              <Button
+                key={index}
+                variant="secondary"
+                onClick={() => claimMine(index)}
+              >
+                Claim {terrainLabel[board[index].terrain]} +
+                {board[index].terrain === 'high' ? 3 : 1}
+              </Button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={skipMining}>
+              Skip remaining claims
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <section className="dev-controls" aria-labelledby="dev-controls-title">
         <div className="dev-heading">
           <div>
