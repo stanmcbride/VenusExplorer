@@ -244,8 +244,8 @@ export default function Home() {
   const status = gameOver
     ? 'Mission ended — compare scores.'
     : `${playerNames[active]}'s turn`;
-  const crawlerRoutePoints =
-    action?.kind === 'crawler'
+  const routePoints =
+    action?.kind === 'crawler' || action?.kind === 'drone'
       ? path
           .map((index) => {
             const point = hexCenter(hexes[index].q, hexes[index].r);
@@ -748,36 +748,37 @@ export default function Home() {
                   </g>
                 );
               })}
-              {action?.kind === 'crawler' && path.length > 0 && (
-                <g className="crawler-route-overlay" aria-hidden="true">
-                  {path.length > 1 && (
-                    <polyline
-                      points={crawlerRoutePoints}
-                      fill="none"
-                      stroke={colors[active]}
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  )}
-                  {path.map((index, step) => {
-                    const point = hexCenter(hexes[index].q, hexes[index].r);
-                    return (
-                      <circle
-                        key={`${index}-${step}`}
-                        cx={point.x}
-                        cy={point.y}
-                        r="6"
-                        fill={colors[active]}
-                        stroke="#17110a"
-                        strokeWidth="2"
+              {(action?.kind === 'crawler' || action?.kind === 'drone') &&
+                path.length > 0 && (
+                  <g className="movement-route-overlay" aria-hidden="true">
+                    {path.length > 1 && (
+                      <polyline
+                        points={routePoints}
+                        fill="none"
+                        stroke={colors[active]}
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
                         vectorEffect="non-scaling-stroke"
                       />
-                    );
-                  })}
-                </g>
-              )}
+                    )}
+                    {path.map((index, step) => {
+                      const point = hexCenter(hexes[index].q, hexes[index].r);
+                      return (
+                        <circle
+                          key={`${index}-${step}`}
+                          cx={point.x}
+                          cy={point.y}
+                          r="6"
+                          fill={colors[active]}
+                          stroke="#17110a"
+                          strokeWidth="2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      );
+                    })}
+                  </g>
+                )}
             </svg>
             <p className="board-note">
               <Radio />

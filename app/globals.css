@@ -398,7 +398,7 @@ button {
   display: grid;
   gap: 0.6rem;
 }
-.crawler-route-overlay {
+.movement-route-overlay {
   pointer-events: none;
 }
 .crawler-token {

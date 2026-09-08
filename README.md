@@ -70,6 +70,7 @@ These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current
 - Moves in any of the six hex directions and may change direction or double back.
 - Reveals every unexplored hex it enters by drawing and placing the next random terrain tile.
 - Moving across an already explored hex consumes movement but reveals nothing.
+- Displays the active player's colored dots and connecting route line while the path is being traced, matching crawler movement feedback.
 - Returns to its crawler after the scouting action; its return path does not consume the printed movement allowance.
 
 ### Crawler
