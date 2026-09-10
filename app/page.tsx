@@ -31,9 +31,28 @@ type Card = { id: number; left: CardAction; right: CardAction };
 type Tile = {
   terrain: Terrain;
   bridge: boolean;
+  bridgeOwner: number | null;
   lowClaims: number[];
   highClaim: number | null;
 };
+function miningPoints(tile: Tile) {
+  if (tile.terrain === 'high') return tile.highClaim === null ? 3 : 0;
+  if (tile.terrain === 'low') return [2, 1][tile.lowClaims.length] ?? 0;
+  return 0;
+}
+
+function bridgeDistance(a: { q: number; r: number }, b: { q: number; r: number }) {
+  return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.q + a.r - b.q - b.r));
+}
+function bridgeCredits(board: Tile[], path: number[], active: number, playerCount: number) {
+  const credits = Array(playerCount).fill(0) as number[];
+  for (const index of path.slice(1)) {
+    const tile = board[index];
+    if (tile.bridge && tile.bridgeOwner != null && tile.bridgeOwner !== active) credits[tile.bridgeOwner] += 1;
+  }
+  return credits;
+}
+
 type TileMix = Record<'plain' | 'canyon' | 'low' | 'high', number>;
 
 const cardTypes: Omit<Card, 'id'>[] = [
@@ -74,8 +93,8 @@ const terrainLabel: Record<Terrain, string> = {
   start: 'Base',
   plain: 'Plain',
   canyon: 'Canyon',
-  low: 'Low mine',
-  high: 'High mine',
+  low: 'Low yield mine',
+  high: 'High yield mine',
   volcano: 'Volcano',
 };
 const terrainMark: Record<Terrain, string> = {
@@ -109,6 +128,63 @@ function makeHexes(radius: number) {
         .map((r) => ({ q, r })),
   );
 }
+type BoardVariant = 'current' | 'tight' | 'valley' | 'triangle';
+const boardVariants: Record<BoardVariant, string> = {
+  current: 'Current',
+  tight: 'Tight Circle',
+  valley: 'Valley Run',
+  triangle: 'Triangle',
+};
+function makeLayout(players: number, variant: BoardVariant) {
+  const radius = players + (variant === 'current' ? 2 : 1);
+  const target = 1 + 3 * radius * (radius + 1) - 7;
+  let hexes: { q: number; r: number }[];
+  let starts: { q: number; r: number }[];
+  let isBase: (q: number, r: number) => boolean;
+  let description: string;
+  if (variant === 'valley') {
+    const width = players + 1;
+    const length = Math.round(target / width) + 1;
+    hexes = Array.from({ length }, (_, r) =>
+      Array.from({ length: width }, (_, col) => ({
+        q: col - Math.floor(r / 2),
+        r,
+      })),
+    ).flat();
+    starts = Array.from({ length: players }, (_, q) => ({ q: q + 1, r: 0 }));
+    isBase = (q, r) => starts.some((start) => start.q === q && start.r === r);
+    description = width + ' wide × ' + length + ' rows · shared starting end';
+  } else if (variant === 'triangle') {
+    const side = Math.round((Math.sqrt(1 + 8 * (target + 6)) - 1) / 2);
+    hexes = Array.from({ length: side }, (_, r) =>
+      Array.from({ length: r + 1 }, (_, q) => ({ q: q - r, r })),
+    ).flat();
+    const bases = players >= 3
+      ? [
+          { q: -1, r: 1 },
+          { q: 0, r: 1 },
+          { q: -2, r: 2 },
+          { q: 0, r: 2 },
+        ]
+      : [{ q: -1, r: 1 }, { q: 0, r: 1 }];
+    starts = bases.slice(0, players);
+    isBase = (q, r) => bases.some((base) => base.q === q && base.r === r);
+    description = side + ' rows · ' + bases.length + (players >= 3 ? ' bases in a U' : ' starting bases');
+  } else {
+    hexes = makeHexes(radius);
+    starts = startingCoordinates(players);
+    isBase = (q, r) => starts.some((start) => start.q === q && start.r === r);
+    description = radius + ' rings · ' + players + ' starting bases';
+  }
+  return {
+    hexes,
+    starts,
+    isBase,
+    description,
+    spaces: hexes.filter(({ q, r }) => !isBase(q, r)).length,
+  };
+}
+
 function hexCenter(q: number, r: number) {
   return { x: hexSize * Math.sqrt(3) * (q + r / 2), y: hexSize * 1.5 * r };
 }
@@ -118,8 +194,7 @@ function hexPoints(x: number, y: number) {
     return `${x + hexSize * Math.cos(a)},${y + hexSize * Math.sin(a)}`;
   }).join(' ');
 }
-function terrainCounts(radius: number, mix: TileMix) {
-  const spaces = 1 + 3 * radius * (radius + 1) - 7;
+function terrainCounts(spaces: number, mix: TileMix) {
   const volcano = Math.max(1, Math.round(spaces * 0.08));
   const adjustableSpaces = spaces - volcano;
   const weighted = adjustableTerrains.map((terrain) => ({
@@ -142,8 +217,8 @@ function terrainCounts(radius: number, mix: TileMix) {
     });
   return { ...counts, volcano };
 }
-function shuffledBag(radius: number, mix: TileMix = defaultTileMix) {
-  const counts = terrainCounts(radius, mix);
+function shuffledBag(spaces: number, mix: TileMix = defaultTileMix) {
+  const counts = terrainCounts(spaces, mix);
   return (
     [
       ...Array(counts.plain).fill('plain'),
@@ -154,13 +229,11 @@ function shuffledBag(radius: number, mix: TileMix = defaultTileMix) {
     ] as Terrain[]
   ).sort(() => Math.random() - 0.5);
 }
-function makeBoard(radius: number): Tile[] {
-  return makeHexes(radius).map(({ q, r }) => ({
-    terrain:
-      Math.max(Math.abs(q), Math.abs(r), Math.abs(-q - r)) <= 1
-        ? 'start'
-        : 'unknown',
+function makeBoard(layout: ReturnType<typeof makeLayout>): Tile[] {
+  return layout.hexes.map(({ q, r }) => ({
+    terrain: layout.isBase(q, r) ? 'start' : 'unknown',
     bridge: false,
+    bridgeOwner: null,
     lowClaims: [],
     highClaim: null,
   }));
@@ -203,17 +276,27 @@ export default function Home() {
   const [players, setPlayers] = useState(3),
     [active, setActive] = useState(0),
     [turn, setTurn] = useState(1);
-  const totalRadius = players + 2,
-    explorationRings = players + 1;
-  const hexes = useMemo(() => makeHexes(totalRadius), [totalRadius]);
+  const [variant, setVariant] = useState<BoardVariant>('current');
+  const layout = useMemo(
+    () => makeLayout(players, variant),
+    [players, variant],
+  );
+  const hexes = layout.hexes;
   const boardViewBox = useMemo(() => {
-    const halfWidth = hexSize * Math.sqrt(3) * (totalRadius + 0.55),
-      halfHeight = hexSize * (1.5 * totalRadius + 1);
-    return `${-halfWidth} ${-halfHeight} ${halfWidth * 2} ${halfHeight * 2}`;
-  }, [totalRadius]);
+    const centers = hexes.map(({ q, r }) => hexCenter(q, r));
+    const minX = Math.min(...centers.map((p) => p.x)) - hexSize;
+    const maxX = Math.max(...centers.map((p) => p.x)) + hexSize;
+    const minY = Math.min(...centers.map((p) => p.y)) - hexSize;
+    const maxY = Math.max(...centers.map((p) => p.y)) + hexSize;
+    return [minX, minY, maxX - minX, maxY - minY].join(' ');
+  }, [hexes]);
   const [tileMix, setTileMix] = useState<TileMix>(defaultTileMix);
-  const [board, setBoard] = useState<Tile[]>(() => makeBoard(5)),
-    [bag, setBag] = useState<Terrain[]>(() => shuffledBag(5, defaultTileMix)),
+  const [board, setBoard] = useState<Tile[]>(() =>
+      makeBoard(makeLayout(3, 'current')),
+    ),
+    [bag, setBag] = useState<Terrain[]>(() =>
+      shuffledBag(makeLayout(3, 'current').spaces, defaultTileMix),
+    ),
     [hands, setHands] = useState<Card[][]>(() => makeHands(3));
   const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
     const initialHexes = makeHexes(5);
@@ -237,7 +320,7 @@ export default function Home() {
       ? null
       : (hands[active]?.find((card) => card.id === selectedCard) ?? null);
   const action = selected && selectedSide ? selected[selectedSide] : null;
-  const currentCounts = terrainCounts(totalRadius, tileMix);
+  const currentCounts = terrainCounts(layout.spaces, tileMix);
   const volcanoTarget = currentCounts.volcano;
   const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length,
     gameOver = volcanoes >= volcanoTarget,
@@ -292,7 +375,7 @@ export default function Home() {
       return (
         board[index].terrain === 'canyon' &&
         !board[index].bridge &&
-        adjacent(hexes[crawlerPositions[active]], hexes[index]) &&
+        bridgeDistance(hexes[crawlerPositions[active]], hexes[index]) <= 5 &&
         !placedBridges.includes(index) &&
         placedBridges.length < action.amount
       );
@@ -330,6 +413,9 @@ export default function Home() {
           current.map((tile, i) => (i === index ? { ...tile, terrain } : tile)),
         );
         setBag((current) => current.slice(1));
+        if (terrain === 'low' || terrain === 'high') {
+          setScores((current) => current.map((score, player) => player === active ? score + 1 : score));
+        }
       }
     }
   }
@@ -351,6 +437,9 @@ export default function Home() {
           ),
         );
         setBag((current) => [terrain, ...current]);
+        if (terrain === 'low' || terrain === 'high') {
+          setScores((current) => current.map((score, player) => player === active ? score - 1 : score));
+        }
       }
     }
     if (action.kind === 'bridge')
@@ -368,10 +457,12 @@ export default function Home() {
     if (action.kind === 'bridge')
       setBoard((current) =>
         current.map((tile, i) =>
-          placedBridges.includes(i) ? { ...tile, bridge: true } : tile,
+          placedBridges.includes(i) ? { ...tile, bridge: true, bridgeOwner: active } : tile,
         ),
       );
     if (action.kind === 'crawler') {
+      const credits = bridgeCredits(board, path, active, scores.length);
+      setScores((current) => current.map((score, player) => score + credits[player]));
       const destination = path[path.length - 1];
       setCrawlerPositions((current) =>
         current.map((position, player) =>
@@ -383,9 +474,7 @@ export default function Home() {
       ).filter((index) => {
         const tile = board[index];
         return (
-          (tile.terrain === 'low' &&
-            !tile.lowClaims.includes(active) &&
-            tile.lowClaims.length < 3) ||
+          (tile.terrain === 'low' && tile.lowClaims.length < 2) ||
           (tile.terrain === 'high' && tile.highClaim === null)
         );
       });
@@ -398,7 +487,8 @@ export default function Home() {
   function claimMine(index: number) {
     if (!actionResolved || !claimable.includes(index) || gameOver) return;
     const terrain = board[index].terrain,
-      points = terrain === 'high' ? 3 : 1;
+      points = miningPoints(board[index]);
+    if (points === 0) return;
     setBoard((current) =>
       current.map((tile, i) =>
         i !== index
@@ -437,19 +527,18 @@ export default function Home() {
     clearAction(null);
     setPassScreen(true);
   }
-  function setupGame(count: number) {
-    const radius = count + 2,
-      nextHexes = makeHexes(radius);
+  function setupGame(count: number, nextVariant: BoardVariant = variant) {
+    const nextLayout = makeLayout(count, nextVariant);
+    const nextHexes = nextLayout.hexes;
+    setVariant(nextVariant);
     setPlayers(count);
     setActive(0);
     setTurn(1);
-    setBoard(makeBoard(radius));
-    setBag(shuffledBag(radius, tileMix));
+    setBoard(makeBoard(nextLayout));
+    setBag(shuffledBag(nextLayout.spaces, tileMix));
     setHands(makeHands(count));
     setCrawlerPositions(
-      startingCoordinates(count).map(({ q, r }) =>
-        coordinateIndex(nextHexes, q, r),
-      ),
+      nextLayout.starts.map(({ q, r }) => coordinateIndex(nextHexes, q, r)),
     );
     setScores([0, 0, 0, 0]);
     clearAction(null);
@@ -507,6 +596,10 @@ export default function Home() {
             type: 'object',
             properties: {
               playerCount: { type: 'integer', minimum: 2, maximum: 4 },
+              boardVariant: {
+                type: 'string',
+                enum: Object.keys(boardVariants),
+              },
             },
             required: ['playerCount'],
             additionalProperties: false,
@@ -521,17 +614,23 @@ export default function Home() {
             )
               throw new Error('playerCount must be 2, 3, or 4');
             const count = Number(value);
-            const radius = count + 2;
-            const nextHexes = makeHexes(radius);
+            const requestedVariant =
+              (input as { boardVariant?: BoardVariant }).boardVariant ??
+              variant;
+            if (!Object.hasOwn(boardVariants, requestedVariant))
+              throw new Error('Invalid board variant');
+            const nextLayout = makeLayout(count, requestedVariant);
+            const nextHexes = nextLayout.hexes;
+            setVariant(requestedVariant);
             setPlayers(count);
             setActive(0);
             setTurn(1);
             setTileMix(defaultTileMix);
-            setBoard(makeBoard(radius));
-            setBag(shuffledBag(radius, defaultTileMix));
+            setBoard(makeBoard(nextLayout));
+            setBag(shuffledBag(nextLayout.spaces, defaultTileMix));
             setHands(makeHands(count));
             setCrawlerPositions(
-              startingCoordinates(count).map(({ q, r }) =>
+              nextLayout.starts.map(({ q, r }) =>
                 coordinateIndex(nextHexes, q, r),
               ),
             );
@@ -549,7 +648,8 @@ export default function Home() {
             return {
               status: 'ready',
               playerCount: value,
-              explorationRings: Number(value) + 1,
+              boardVariant: requestedVariant,
+              explorableTiles: nextLayout.spaces,
             };
           },
         },
@@ -557,7 +657,7 @@ export default function Home() {
       ),
     ).catch(() => {});
     return () => lifecycle.abort();
-  }, []);
+  }, [variant]);
 
   const instructions = !selected
     ? 'Choose one card from your hand.'
@@ -568,7 +668,7 @@ export default function Home() {
           ? 'Claim any eligible mine, or finish the turn.'
           : 'Action complete. Finish the turn.'
         : action?.kind === 'bridge'
-          ? `Choose up to ${action.amount} adjacent canyon ${action.amount === 1 ? 'tile' : 'tiles'}.`
+          ? `Choose up to ${action.amount} revealed canyon ${action.amount === 1 ? 'tile' : 'tiles'} within 5 spaces of your crawler.`
           : `Trace a connected ${action?.kind} route of up to ${action?.amount} spaces.`;
 
   return (
@@ -602,6 +702,27 @@ export default function Home() {
       </header>
       <section className="mx-auto grid max-w-[1500px] items-start gap-4 p-4 md:p-7 xl:grid-cols-[250px_minmax(0,1fr)]">
         <aside className="panel order-2 xl:order-1">
+          <label className="eyebrow" htmlFor="board-variant">
+            Board variant
+          </label>
+          <select
+            id="board-variant"
+            value={variant}
+            onChange={(event) =>
+              setupGame(players, event.target.value as BoardVariant)
+            }
+            className="my-2 w-full rounded-md border border-white/20 bg-[#211d18] p-2 text-sm text-white"
+          >
+            {Object.entries(boardVariants).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <p className="muted">
+            {layout.description}. Changing the board or crew starts a new game.
+          </p>
+          <div className="divider" />
           <p className="eyebrow">Crew manifest</p>
           <div className="mb-5 grid grid-cols-3 gap-2">
             {[2, 3, 4].map((n) => (
@@ -636,6 +757,30 @@ export default function Home() {
             ))}
           </div>
           <div className="divider" />
+          <section aria-labelledby="objectives-heading">
+            <h2 id="objectives-heading" className="eyebrow">Objectives</h2>
+            <div className="stat-row">
+              <span>Mine Discovery</span>
+              <b className="whitespace-nowrap">1 Credit</b>
+            </div>
+            <div className="stat-row">
+              <span>Low Yield Mine First Dig</span>
+              <b className="whitespace-nowrap">2 Credits</b>
+            </div>
+            <div className="stat-row">
+              <span>Low Yield Mine 2nd Dig</span>
+              <b className="whitespace-nowrap">1 Credit</b>
+            </div>
+            <div className="stat-row">
+              <span>High Yield Mine</span>
+              <b className="whitespace-nowrap">3 Credits</b>
+            </div>
+            <div className="stat-row">
+              <span>Opponent Crosses Your Bridge</span>
+              <b className="whitespace-nowrap">1 Credit</b>
+            </div>
+          </section>
+          <div className="divider" />
           <p className="eyebrow">Mission clock</p>
           <div className="volcano-track">
             {Array.from({ length: volcanoTarget }, (_, i) => (
@@ -653,8 +798,8 @@ export default function Home() {
             <b>{turn}</b>
           </div>
           <div className="stat-row">
-            <span>Exploration rings</span>
-            <b>{explorationRings}</b>
+            <span>Explorable spaces</span>
+            <b>{layout.spaces}</b>
           </div>
           <div className="stat-row">
             <span>Mapped</span>
@@ -672,7 +817,7 @@ export default function Home() {
             <div className="board-heading">
               <div>
                 <p className="eyebrow">Ishtar Terra sector</p>
-                <h2>Shared survey map</h2>
+                <h2>{boardVariants[variant]}</h2>
               </div>
               <div className="legend">
                 <span>
@@ -681,11 +826,11 @@ export default function Home() {
                 </span>
                 <span>
                   <i className="low" />
-                  Low
+                  Low yield
                 </span>
                 <span>
                   <i className="high" />
-                  High
+                  High yield
                 </span>
                 <span>
                   <i className="canyon" />
@@ -719,7 +864,7 @@ export default function Home() {
                     className={`hex ${tile.terrain} ${tile.bridge || bridgePreview ? 'bridged' : ''} ${enabled ? 'enabled' : ''}`}
                     tabIndex={enabled ? 0 : -1}
                     aria-disabled={!enabled}
-                    aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}`}
+                    aria-label={`${terrainLabel[tile.terrain]} sector ${i + 1}${tile.bridgeOwner != null ? `, bridge built by ${playerNames[tile.bridgeOwner]}` : ''}`}
                     onClick={() => handleTile(i)}
                     onKeyDown={(e) => {
                       if (enabled && (e.key === 'Enter' || e.key === ' ')) {
@@ -742,6 +887,7 @@ export default function Home() {
                     {(tile.bridge || bridgePreview) && (
                       <text
                         className="bridge-mark"
+                        style={{ fill: colors[tile.bridgeOwner ?? active] }}
                         x={x}
                         y={y + 12}
                         textAnchor="middle"
@@ -831,6 +977,9 @@ export default function Home() {
                     disabled={boardTouched}
                   >
                     {card.left.label}
+                    {card.left.kind === 'bridge' && (
+                      <small className="bridge-card-note">Build within 5 spaces. Earn 1 Credit each time an opponent crosses.</small>
+                    )}
                   </button>
                   <em>OR</em>
                   <button
@@ -839,6 +988,9 @@ export default function Home() {
                     disabled={boardTouched}
                   >
                     {card.right.label}
+                    {card.right.kind === 'bridge' && (
+                      <small className="bridge-card-note">Build within 5 spaces. Earn 1 Credit each time an opponent crosses.</small>
+                    )}
                   </button>
                 </div>
               ))}
@@ -908,7 +1060,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Mine claim available</DialogTitle>
             <DialogDescription>
-              Choose a resource claim before finishing the turn, or skip the
+              Discovering either mine earns 1 point. Low yield mines pay 2 points, then 1; high yield mines pay 3 points once. Choose a claim or skip the
               remaining opportunities.
             </DialogDescription>
           </DialogHeader>
@@ -920,7 +1072,7 @@ export default function Home() {
                 onClick={() => claimMine(index)}
               >
                 Claim {terrainLabel[board[index].terrain]} +
-                {board[index].terrain === 'high' ? 3 : 1}
+                {miningPoints(board[index])}
               </Button>
             ))}
           </div>

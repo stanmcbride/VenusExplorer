@@ -24,8 +24,8 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 | Start / base    | Seven connected safe hexes: one central base hex surrounded by six starting hexes.                |
 | Plain           | Explored, traversable terrain with no resource value.                                             |
 | Canyon          | Blocks crawlers until a bridge spans the canyon.                                                  |
-| Low-value mine  | Worth 1 point per claim; may be claimed by up to three different explorers.                       |
-| High-value mine | Worth 3 points; may be claimed once, after which its resources are exhausted.                     |
+| Low yield mine  | Discovery: 1 point. Two claims: first 2 points, then 1 point.                       |
+| High yield mine | Discovery: 1 point. One mining claim worth 3 points; then exhausted.                     |
 | Volcano         | Impassable to crawlers. When the configured final volcano is revealed, the game ends immediately. |
 
 ## Setup
@@ -86,8 +86,9 @@ These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current
 ## Mining and scoring
 
 - A crawler that ends its movement on a mine may claim it; claiming is optional.
-- A low-value mine awards 1 point and accepts at most three claims, with no more than one claim per explorer unless a later rule says otherwise.
-- A high-value mine awards 3 points to the first claimant and is then exhausted.
+- Discovering either mine awards 1 point. Revisiting revealed mines awards no discovery points. Undoing a reveal reverses its discovery point.
+- A low yield mine accepts two claims: first 2 points, then 1 point, then it is exhausted. The same explorer may claim again on a later visit.
+- A high yield mine awards 3 points to the first claimant and is then exhausted.
 - Scores and claims should both be visible so playtesters can audit the result.
 - Highest score wins. Tie-breaking is not yet specified.
 
@@ -101,7 +102,7 @@ The current interface provides a player-count-scaled survey board, 2–4 pass-an
 
 ### Provisional balance defaults
 
-The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. Volcanoes are fixed at 8% of non-base tiles, rounded to the nearest whole tile: 4 volcanoes for two players, 7 for three, and 10 for four. The default remaining mix is 40% plains, 17% canyons, 23% low mines, and 12% high mines. Development sliders rebalance those four values to a combined 92% and regenerate the bag when applied. These remain playtest values rather than finalized rules.
+The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. Volcanoes are fixed at 8% of non-base tiles, rounded to the nearest whole tile: 4 volcanoes for two players, 7 for three, and 10 for four. The default remaining mix is 40% plains, 17% canyons, 23% low yield mines, and 12% high yield mines. Development sliders rebalance those four values to a combined 92% and regenerate the bag when applied. These remain playtest values rather than finalized rules.
 
 ## Decisions needed next
 
@@ -110,7 +111,7 @@ The seven-hex starting block is surrounded by three exploration rings for two pl
 3. Whether a crawler may move through another crawler or share a hex.
 4. Bridge placement: placed from the crawler, adjacent to it, from anywhere explored, or as part of movement; one permanent bridge per canyon tile or an edge-spanning bridge between two banks.
 5. Whether bridge pieces are limited, shared, owned, and/or worth points.
-6. Whether each low mine permits one claim per player and exactly three claims total.
+6. Low yield mines allow two claims total, worth 2 then 1 point. The same explorer may claim again on a later visit.
 7. Whether mining consumes movement, the whole card action, or no additional action.
 8. Set the deck size and number of copies of each approved slide 1 card face.
 9. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
@@ -134,9 +135,32 @@ These defaults borrow the clarity and pacing of polished digital board-game adap
 6. **How should drone exploration feel?** Initial answer: the player traces one continuous route up to the printed range. Newly entered spaces reveal sequentially from the bag. The drone then animates back to its crawler without consuming range.
 7. **How should board information appear on small screens?** Initial answer: make the board the main viewport, place the hand in a bottom drawer, and move player/mission information into compact top controls. Tapping a tile opens its details without covering the selected route.
 8. **How should mining work during crawler movement?** Initial answer: ordinary crawler cards permit mining only at the final space. The special “Crawler 2, may mine at each location” card pauses at each eligible mine with a claim/skip prompt.
-9. **How should bridges be placed?** Initial answer: treat each bridge section as a placed connection across one canyon hex edge. The player chooses an explored canyon adjacent to their crawler and previews each section before confirming. This remains provisional because the physical rule is not yet explicit.
+9. **How should bridges be placed?** Initial answer: treat each bridge section as a placed connection across one canyon hex edge. The player chooses an explored canyon within five spaces of their crawler and previews each bridge before confirming. This remains provisional because the physical rule is not yet explicit.
 10. **How should game information be explained?** Initial answer: use concise contextual tooltips and a collapsible rules reference. Do not interrupt routine turns with tutorials after the first guided game.
 11. **How should scoring be presented?** Initial answer: keep scores visible throughout play for the prototype because balance testing benefits from transparency. Add a setting later if hidden scoring becomes desirable.
 12. **What should happen when the eruption ends the game?** Initial answer: stop immediately on the final volcano reveal, show the completed board, then present a scoring breakdown and replay summary. Do not give remaining players a final turn.
 13. **How much animation should version 0.0 use?** Initial answer: short functional motion only for card selection, route previews, tile reveals, crawler movement, and the eruption. Add richer art direction after the rules engine stabilizes.
 14. **Should a game survive a browser refresh?** Initial answer: save the current local game automatically on the device and offer Resume or New Game. Online accounts and multiplayer synchronization remain out of scope.
+
+## Experimental board variants
+
+The Board variant dropdown starts a fresh game with the selected layout. Reset and crew-size changes preserve that selection. All layouts use the same movement, mining, cards, and terrain percentages; volcano counts and tile bags use each layout's actual explorable area.
+
+- **Current:** original central seven-hex base and player-count-scaled hexagon.
+- **Tight Circle:** Current with one outer exploration ring removed.
+- **Valley Run:** a straight staggered hex corridor, player count plus one spaces wide, with a safe starting row at one end. Length approximates Tight Circle's explorable area.
+- **Triangle:** widening rows from one shared corner, with six safe corner spaces and separate player starts. Side length approximates Tight Circle's explorable area.
+
+| Players | Current exploration tiles | Tight Circle | Valley Run | Triangle |
+| --- | ---: | ---: | ---: | ---: |
+| 2 | 54 | 30 | 30 | 30 |
+| 3 | 84 | 54 | 56 | 49 |
+| 4 | 120 | 84 | 85 | 85 |
+
+Changing board or crew discards the current game. These experimental layouts do not yet add playtest logging or replayable seeds.
+
+## Bridge building and rewards
+
+- Build on any revealed, unbridged canyon within five hex spaces of your crawler, measured by hex distance. Terrain between the crawler and canyon does not block building.
+- Each bridge keeps its builder’s color and ownership.
+- When a confirmed crawler route enters an opponent’s bridge tile, the builder earns 1 credit for each entry, including repeat crossings. Using your own bridge or flying a drone over one awards no credits. Previewing or undoing an unconfirmed route awards no credits.

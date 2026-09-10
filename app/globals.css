@@ -409,6 +409,7 @@ button {
   width: 100vw !important;
   height: 100dvh;
   max-width: none !important;
+  translate: none !important;
   transform: none !important;
   place-items: center;
   border: 0;
@@ -466,7 +467,7 @@ button {
   pointer-events: none;
 }
 .bridge-mark {
-  fill: #ffe08a !important;
+  fill: #ffe08a;
   font-size: 24px !important;
   font-weight: 900 !important;
   pointer-events: none;
@@ -587,3 +588,5 @@ button {
     display: none;
   }
 }
+
+.bridge-card-note { display: block; margin-top: 0.4rem; font-size: 0.875rem; line-height: 1.35; font-weight: 400; color: #d3c7b8; }
