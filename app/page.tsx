@@ -295,8 +295,9 @@ export default function Home() {
       makeBoard(makeLayout(3, 'current')),
     ),
     [bag, setBag] = useState<Terrain[]>(() =>
-      shuffledBag(makeLayout(3, 'current').spaces, defaultTileMix),
+      shuffledBag(makeLayout(3, 'current').spaces + 3 * 4, defaultTileMix),
     ),
+    [setAsideTiles, setSetAsideTiles] = useState<Terrain[]>([]),
     [hands, setHands] = useState<Card[][]>(() => makeHands(3));
   const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
     const initialHexes = makeHexes(5);
@@ -307,7 +308,6 @@ export default function Home() {
   const [selectedCard, setSelectedCard] = useState<number | null>(null),
     [selectedSide, setSelectedSide] = useState<'left' | 'right' | null>(null),
     [path, setPath] = useState<number[]>([]),
-    [droneDraws, setDroneDraws] = useState<(Terrain | null)[]>([]),
     [placedBridges, setPlacedBridges] = useState<number[]>([]),
     [boardTouched, setBoardTouched] = useState(false),
     [actionResolved, setActionResolved] = useState(false),
@@ -320,9 +320,11 @@ export default function Home() {
       ? null
       : (hands[active]?.find((card) => card.id === selectedCard) ?? null);
   const action = selected && selectedSide ? selected[selectedSide] : null;
-  const currentCounts = terrainCounts(layout.spaces, tileMix);
+  const bagSize = layout.spaces + players * 4;
+  const currentCounts = terrainCounts(bagSize, tileMix);
   const volcanoTarget = currentCounts.volcano;
-  const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length,
+  const setAsideVolcanoes = setAsideTiles.filter((tile) => tile === 'volcano').length;
+  const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length + setAsideVolcanoes,
     gameOver = volcanoes >= volcanoTarget,
     explored = board.filter((tile) => tile.terrain !== 'unknown').length,
     stepsUsed = Math.max(0, path.length - 1);
@@ -343,7 +345,6 @@ export default function Home() {
     setSelectedCard(cardId);
     setSelectedSide(null);
     setPath([]);
-    setDroneDraws([]);
     setPlacedBridges([]);
     setBoardTouched(false);
     setActionResolved(false);
@@ -365,7 +366,6 @@ export default function Home() {
         : [],
     );
     setPlacedBridges([]);
-    setDroneDraws([]);
     setActionResolved(false);
     setClaimable([]);
   }
@@ -407,7 +407,6 @@ export default function Home() {
     if (action.kind === 'drone') {
       const terrain =
         board[index].terrain === 'unknown' && bag.length ? bag[0] : null;
-      setDroneDraws((current) => [...current, terrain]);
       if (terrain) {
         setBoard((current) =>
           current.map((tile, i) => (i === index ? { ...tile, terrain } : tile)),
@@ -420,28 +419,11 @@ export default function Home() {
     }
   }
   function undoStep() {
-    if (!action || actionResolved) return;
+    if (!action || actionResolved || action.kind === 'drone') return;
     if (action.kind === 'crawler')
       setPath((current) =>
         current.length > 1 ? current.slice(0, -1) : current,
       );
-    if (action.kind === 'drone' && path.length > 1) {
-      const destination = path[path.length - 1];
-      const terrain = droneDraws[droneDraws.length - 1];
-      setPath((current) => current.slice(0, -1));
-      setDroneDraws((current) => current.slice(0, -1));
-      if (terrain) {
-        setBoard((current) =>
-          current.map((tile, index) =>
-            index === destination ? { ...tile, terrain: 'unknown' } : tile,
-          ),
-        );
-        setBag((current) => [terrain, ...current]);
-        if (terrain === 'low' || terrain === 'high') {
-          setScores((current) => current.map((score, player) => player === active ? score - 1 : score));
-        }
-      }
-    }
     if (action.kind === 'bridge')
       setPlacedBridges((current) => current.slice(0, -1));
   }
@@ -514,6 +496,12 @@ export default function Home() {
   }
   function endTurn() {
     if (!selected || !actionResolved || gameOver) return;
+    const roundDraw = active === players - 1 ? bag.slice(0, players) : [];
+    if (roundDraw.length) {
+      setBag((current) => current.slice(roundDraw.length));
+      setSetAsideTiles((current) => [...current, ...roundDraw]);
+    }
+    const roundEruption = volcanoes + roundDraw.filter((tile) => tile === 'volcano').length >= volcanoTarget;
     const replacement = makeCard(turn + active + 4, 0);
     setHands((current) =>
       current.map((hand, player) =>
@@ -525,7 +513,7 @@ export default function Home() {
     setActive((active + 1) % players);
     setTurn((value) => value + 1);
     clearAction(null);
-    setPassScreen(true);
+    setPassScreen(!roundEruption);
   }
   function setupGame(count: number, nextVariant: BoardVariant = variant) {
     const nextLayout = makeLayout(count, nextVariant);
@@ -535,7 +523,8 @@ export default function Home() {
     setActive(0);
     setTurn(1);
     setBoard(makeBoard(nextLayout));
-    setBag(shuffledBag(nextLayout.spaces, tileMix));
+    setBag(shuffledBag(nextLayout.spaces + count * 4, tileMix));
+    setSetAsideTiles([]);
     setHands(makeHands(count));
     setCrawlerPositions(
       nextLayout.starts.map(({ q, r }) => coordinateIndex(nextHexes, q, r)),
@@ -627,7 +616,8 @@ export default function Home() {
             setTurn(1);
             setTileMix(defaultTileMix);
             setBoard(makeBoard(nextLayout));
-            setBag(shuffledBag(nextLayout.spaces, defaultTileMix));
+            setBag(shuffledBag(nextLayout.spaces + count * 4, defaultTileMix));
+            setSetAsideTiles([]);
             setHands(makeHands(count));
             setCrawlerPositions(
               nextLayout.starts.map(({ q, r }) =>
@@ -638,7 +628,6 @@ export default function Home() {
             setSelectedCard(null);
             setSelectedSide(null);
             setPath([]);
-            setDroneDraws([]);
             setPlacedBridges([]);
             setBoardTouched(false);
             setActionResolved(false);
@@ -650,6 +639,7 @@ export default function Home() {
               playerCount: value,
               boardVariant: requestedVariant,
               explorableTiles: nextLayout.spaces,
+              bagTiles: nextLayout.spaces + count * 4,
             };
           },
         },
@@ -790,8 +780,10 @@ export default function Home() {
             ))}
           </div>
           <p className="muted">
-            The final volcano ends the mission immediately. This board uses the
-            8% guideline: {volcanoTarget} volcano tiles.
+            The final volcano ends the mission immediately, whether explored or
+            set aside. After every full round, draw {players} tiles and set them
+            aside. The bag includes {players * 4} extra tiles and {volcanoTarget}
+            {' '}volcanoes using the same terrain percentages.
           </p>
           <div className="stat-row">
             <span>Turn</span>
@@ -810,6 +802,18 @@ export default function Home() {
           <div className="stat-row">
             <span>Tiles left</span>
             <b>{bag.length}</b>
+          </div>
+          <div className="stat-row">
+            <span>Tiles set aside</span>
+            <b>{setAsideTiles.length}</b>
+          </div>
+          <div className="stat-row">
+            <span>Volcanoes set aside</span>
+            <b>{setAsideVolcanoes}</b>
+          </div>
+          <div className="stat-row">
+            <span>Rounds completed</span>
+            <b>{Math.floor((turn - 1) / players)}</b>
           </div>
         </aside>
         <div className="play-column order-1 xl:order-2">
@@ -1008,10 +1012,11 @@ export default function Home() {
             </div>
             {!actionResolved && action && (
               <div className="grid grid-cols-2 gap-2">
+                {action.kind !== 'drone' && (
                 <Button
                   variant="secondary"
                   disabled={
-                    action.kind === 'crawler' || action.kind === 'drone'
+                    action.kind === 'crawler'
                       ? stepsUsed === 0
                       : placedBridges.length === 0
                   }
@@ -1020,6 +1025,7 @@ export default function Home() {
                   <Undo2 />
                   Undo
                 </Button>
+                )}
                 <Button
                   disabled={
                     action.kind === 'crawler' || action.kind === 'drone'
@@ -1150,7 +1156,9 @@ export default function Home() {
             <span>Volcano</span>
             <strong>8%</strong>
             <small>
-              2 players: 4 tiles · 3 players: 7 tiles · 4 players: 10 tiles
+              {([2, 3, 4] as const).map((count) =>
+                `${count} players: ${terrainCounts(makeLayout(count, variant).spaces + count * 4, tileMix).volcano} tiles`,
+              ).join(' · ')}
             </small>
           </div>
         </div>

@@ -86,7 +86,7 @@ These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current
 ## Mining and scoring
 
 - A crawler that ends its movement on a mine may claim it; claiming is optional.
-- Discovering either mine awards 1 point. Revisiting revealed mines awards no discovery points. Undoing a reveal reverses its discovery point.
+- Discovering either mine awards 1 point. Revisiting revealed mines awards no discovery points. Drone exploration cannot be undone; revealed terrain and discovery points are permanent.
 - A low yield mine accepts two claims: first 2 points, then 1 point, then it is exhausted. The same explorer may claim again on a later visit.
 - A high yield mine awards 3 points to the first claimant and is then exhausted.
 - Scores and claims should both be visible so playtesters can audit the result.
@@ -164,3 +164,13 @@ Changing board or crew discards the current game. These experimental layouts do 
 - Build on any revealed, unbridged canyon within five hex spaces of your crawler, measured by hex distance. Terrain between the crawler and canyon does not block building.
 - Each bridge keeps its builder’s color and ownership.
 - When a confirmed crawler route enters an opponent’s bridge tile, the builder earns 1 credit for each entry, including repeat crossings. Using your own bridge or flying a drone over one awards no credits. Previewing or undoing an unconfirmed route awards no credits.
+
+## Round-based eruption clock (current rule)
+
+The bag contains the board's actual explorable area plus **four extra tiles per player**. Apply the existing terrain percentages to this enlarged bag, including 8% volcanoes and the existing integer rounding.
+
+After every player has completed a turn, beginning after round 1, draw **one tile per player** from the bag and set those tiles aside. They never enter the board and award no discovery or mining points. Set-aside volcanoes count toward the same eruption threshold as explored volcanoes. Reaching the final volcano ends the game immediately, including at a round boundary; no next-player privacy screen appears. If fewer tiles remain than the required round draw, set aside all remaining tiles.
+
+Drone exploration has no undo. Revealed tiles and discovery points are permanent. Crawler routes and bridge previews may still be undone before resolution.
+
+This rule supersedes earlier bag-size and volcano-count descriptions above. The terrain percentages have not changed.
