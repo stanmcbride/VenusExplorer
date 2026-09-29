@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -36,8 +36,8 @@ type Tile = {
   highClaim: number | null;
 };
 function miningPoints(tile: Tile) {
-  if (tile.terrain === 'high') return tile.highClaim === null ? 3 : 0;
-  if (tile.terrain === 'low') return [2, 1][tile.lowClaims.length] ?? 0;
+  if (tile.terrain === 'high') return tile.highClaim === null ? 4 : 0;
+  if (tile.terrain === 'low') return [3, 2][tile.lowClaims.length] ?? 0;
   return 0;
 }
 
@@ -48,7 +48,7 @@ function bridgeCredits(board: Tile[], path: number[], active: number, playerCoun
   const credits = Array(playerCount).fill(0) as number[];
   for (const index of path.slice(1)) {
     const tile = board[index];
-    if (tile.bridge && tile.bridgeOwner != null && tile.bridgeOwner !== active) credits[tile.bridgeOwner] += 1;
+    if (tile.bridge && tile.bridgeOwner != null && tile.bridgeOwner !== active) credits[tile.bridgeOwner] += 3;
   }
   return credits;
 }
@@ -107,7 +107,7 @@ const terrainMark: Record<Terrain, string> = {
   volcano: '!',
 };
 const hexSize = 42;
-const defaultTileMix: TileMix = { plain: 30, canyon: 25, low: 25, high: 12 };
+const defaultTileMix: TileMix = { plain: 20, canyon: 47, low: 15, high: 10 };
 const adjustableTerrains = ['plain', 'canyon', 'low', 'high'] as const;
 const baseRingCoordinates = [
   { q: 0, r: -1 },
@@ -194,8 +194,9 @@ function hexPoints(x: number, y: number) {
     return `${x + hexSize * Math.cos(a)},${y + hexSize * Math.sin(a)}`;
   }).join(' ');
 }
-function terrainCounts(spaces: number, mix: TileMix) {
-  const volcano = Math.max(1, Math.round(spaces * 0.08));
+function volcanoPercentage(players: number) { return players === 2 ? 9 : players === 3 ? 10 : 12; }
+function terrainCounts(spaces: number, mix: TileMix, players = 3) {
+  const volcano = Math.max(1, Math.round(spaces * volcanoPercentage(players) / 100));
   const adjustableSpaces = spaces - volcano;
   const weighted = adjustableTerrains.map((terrain) => ({
     terrain,
@@ -217,8 +218,8 @@ function terrainCounts(spaces: number, mix: TileMix) {
     });
   return { ...counts, volcano };
 }
-function shuffledBag(spaces: number, mix: TileMix = defaultTileMix) {
-  const counts = terrainCounts(spaces, mix);
+function shuffledBag(spaces: number, mix: TileMix = defaultTileMix, players = 3) {
+  const counts = terrainCounts(spaces, mix, players);
   return (
     [
       ...Array(counts.plain).fill('plain'),
@@ -238,17 +239,60 @@ function makeBoard(layout: ReturnType<typeof makeLayout>): Tile[] {
     highClaim: null,
   }));
 }
-function makeCard(seed: number, offset: number): Card {
+const copiesPerCardType = 9;
+type CardSupply = { hands: Card[][]; drawPile: Card[]; discardPile: Card[] };
+function shuffleCards(cards: Card[], random = Math.random): Card[] {
+  const shuffled = [...cards];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+function dealCards(players: number, random = Math.random): CardSupply {
+  const deck = shuffleCards(cardTypes.flatMap((type, typeIndex) =>
+    Array.from({ length: copiesPerCardType }, (_, copy) => ({
+      ...type, id: typeIndex * copiesPerCardType + copy,
+    })),
+  ), random);
+  const hands = Array.from({ length: players }, () => [] as Card[]);
+  for (let round = 0; round < 4; round++) {
+    for (let player = 0; player < players; player++) {
+      hands[player].push(deck[round * players + player]);
+    }
+  }
+  return { hands, drawPile: deck.slice(players * 4), discardPile: [] };
+}
+function replacePlayedCard(supply: CardSupply, player: number, cardId: number, random = Math.random): CardSupply {
+  const played = supply.hands[player]?.find((card) => card.id === cardId);
+  if (!played) return supply;
+  let discardPile = [...supply.discardPile, played];
+  let drawPile = supply.drawPile;
+  if (drawPile.length === 0) {
+    drawPile = shuffleCards(discardPile, random);
+    discardPile = [];
+  }
+  const [replacement, ...remaining] = drawPile;
   return {
-    ...cardTypes[(seed + offset) % cardTypes.length],
-    id: seed * 100 + offset,
+    hands: supply.hands.map((hand, seat) => seat === player
+      ? hand.map((card) => card.id === cardId ? replacement : card)
+      : hand),
+    drawPile: remaining,
+    discardPile,
   };
 }
-function makeHands(players: number): Card[][] {
-  return Array.from({ length: players }, (_, p) =>
-    Array.from({ length: 4 }, (_, i) => makeCard(p * 2, i)),
-  );
+function mulliganSupply(supply: CardSupply, player: number, random = Math.random): CardSupply {
+  const hands = supply.hands.map((hand) => [...hand]);
+  let drawPile = [...supply.drawPile];
+  let discardPile = [...supply.discardPile, ...hands[player]];
+  hands[player] = [];
+  for (let i = 0; i < 4; i++) {
+    if (!drawPile.length) { drawPile = shuffleCards(discardPile, random); discardPile = []; }
+    hands[player].push(drawPile.shift()!);
+  }
+  return { hands, drawPile, discardPile };
 }
+
 function coordinateIndex(
   hexes: { q: number; r: number }[],
   q: number,
@@ -272,7 +316,13 @@ function adjacent(a: { q: number; r: number }, b: { q: number; r: number }) {
   );
 }
 
+const subscribeToClient = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export default function Home() {
+  // Random hands and terrain must not render differently during hydration.
+  const clientReady = useSyncExternalStore(subscribeToClient, clientSnapshot, serverSnapshot);
   const [players, setPlayers] = useState(3),
     [active, setActive] = useState(0),
     [turn, setTurn] = useState(1);
@@ -291,14 +341,18 @@ export default function Home() {
     return [minX, minY, maxX - minX, maxY - minY].join(' ');
   }, [hexes]);
   const [tileMix, setTileMix] = useState<TileMix>(defaultTileMix);
+  const [initialBag] = useState(() => shuffledBag(makeLayout(3, 'current').spaces + 12, defaultTileMix, 3));
+  const [missionEnded, setMissionEnded] = useState(false);
+  const [mulligan, setMulligan] = useState(false);
   const [board, setBoard] = useState<Tile[]>(() =>
       makeBoard(makeLayout(3, 'current')),
     ),
     [bag, setBag] = useState<Terrain[]>(() =>
-      shuffledBag(makeLayout(3, 'current').spaces + 3 * 4, defaultTileMix),
+      initialBag.slice(1),
     ),
-    [setAsideTiles, setSetAsideTiles] = useState<Terrain[]>([]),
-    [hands, setHands] = useState<Card[][]>(() => makeHands(3));
+    [setAsideTiles, setSetAsideTiles] = useState<Terrain[]>(() => initialBag.slice(0, 1)),
+    [cardSupply, setCardSupply] = useState<CardSupply>(() => dealCards(3));
+  const hands = cardSupply.hands;
   const [crawlerPositions, setCrawlerPositions] = useState<number[]>(() => {
     const initialHexes = makeHexes(5);
     return startingCoordinates(3).map(({ q, r }) =>
@@ -319,18 +373,18 @@ export default function Home() {
     selectedCard === null
       ? null
       : (hands[active]?.find((card) => card.id === selectedCard) ?? null);
-  const action = selected && selectedSide ? selected[selectedSide] : null;
+  const action: CardAction | null = mulligan ? { kind: 'crawler', amount: 3, label: 'Mulligan' } : selected && selectedSide ? selected[selectedSide] : null;
   const bagSize = layout.spaces + players * 4;
-  const currentCounts = terrainCounts(bagSize, tileMix);
-  const volcanoTarget = currentCounts.volcano;
+  const currentCounts = terrainCounts(bagSize, tileMix, players);
+  const volcanoTarget = Math.max(1, Math.round(bagSize * 0.08));
   const setAsideVolcanoes = setAsideTiles.filter((tile) => tile === 'volcano').length;
   const volcanoes = board.filter((tile) => tile.terrain === 'volcano').length + setAsideVolcanoes,
-    gameOver = volcanoes >= volcanoTarget,
+    gameOver = missionEnded,
     explored = board.filter((tile) => tile.terrain !== 'unknown').length,
     stepsUsed = Math.max(0, path.length - 1);
   const status = gameOver
     ? 'Mission ended — compare scores.'
-    : `${playerNames[active]}'s turn`;
+    : `${playerNames[active]}'s turn${volcanoes >= volcanoTarget ? ' — final round' : ''}`;
   const routePoints =
     action?.kind === 'crawler' || action?.kind === 'drone'
       ? path
@@ -352,11 +406,11 @@ export default function Home() {
     setClaimDialogOpen(false);
   }
   function chooseCard(cardId: number) {
-    if (boardTouched) return;
+    if (boardTouched || mulligan || actionResolved || gameOver || passScreen) return;
     clearAction(cardId);
   }
   function chooseSide(side: 'left' | 'right', card: Card) {
-    if (boardTouched) return;
+    if (boardTouched || mulligan || actionResolved || gameOver || passScreen) return;
     const next = card[side];
     setSelectedCard(card.id);
     setSelectedSide(side);
@@ -370,7 +424,7 @@ export default function Home() {
     setClaimable([]);
   }
   function tileIsLegal(index: number) {
-    if (!action || actionResolved || gameOver) return false;
+    if (!action || actionResolved || gameOver || passScreen) return false;
     if (action.kind === 'bridge')
       return (
         board[index].terrain === 'canyon' &&
@@ -419,7 +473,7 @@ export default function Home() {
     }
   }
   function undoStep() {
-    if (!action || actionResolved || action.kind === 'drone') return;
+    if (!action || actionResolved || gameOver || passScreen || action.kind === 'drone') return;
     if (action.kind === 'crawler')
       setPath((current) =>
         current.length > 1 ? current.slice(0, -1) : current,
@@ -430,9 +484,9 @@ export default function Home() {
   function resolveAction() {
     if (
       !action ||
-      gameOver ||
+      gameOver || passScreen ||
       actionResolved ||
-      (action.kind !== 'bridge' && stepsUsed === 0) ||
+      (action.kind !== 'bridge' && stepsUsed === 0 && !mulligan) ||
       (action.kind === 'bridge' && placedBridges.length === 0)
     )
       return;
@@ -494,26 +548,28 @@ export default function Home() {
     setClaimable([]);
     setClaimDialogOpen(false);
   }
+  function beginMulligan() {
+    if (boardTouched || actionResolved || mulligan || gameOver || passScreen) return;
+    setCardSupply(mulliganSupply(cardSupply, active));
+    clearAction(null);
+    setMulligan(true);
+    setPath([crawlerPositions[active]]);
+  }
   function endTurn() {
-    if (!selected || !actionResolved || gameOver) return;
-    const roundDraw = active === players - 1 ? bag.slice(0, players) : [];
-    if (roundDraw.length) {
-      setBag((current) => current.slice(roundDraw.length));
-      setSetAsideTiles((current) => [...current, ...roundDraw]);
+    if ((!selected && !mulligan) || !actionResolved || claimDialogOpen || gameOver || passScreen) return;
+    if (!mulligan && selected) setCardSupply(replacePlayedCard(cardSupply, active, selected.id));
+    const finished = volcanoes >= volcanoTarget && active === players - 1;
+    setMissionEnded(finished);
+    // Prepare exactly one draw for the next turn; never draw after the mission ends.
+    if (!finished) {
+      setSetAsideTiles([...setAsideTiles, ...bag.slice(0, 1)]);
+      setBag(bag.slice(1));
+      setActive((active + 1) % players);
     }
-    const roundEruption = volcanoes + roundDraw.filter((tile) => tile === 'volcano').length >= volcanoTarget;
-    const replacement = makeCard(turn + active + 4, 0);
-    setHands((current) =>
-      current.map((hand, player) =>
-        player === active
-          ? hand.map((card) => (card.id === selected.id ? replacement : card))
-          : hand,
-      ),
-    );
-    setActive((active + 1) % players);
     setTurn((value) => value + 1);
     clearAction(null);
-    setPassScreen(!roundEruption);
+    setMulligan(false);
+    setPassScreen(!finished);
   }
   function setupGame(count: number, nextVariant: BoardVariant = variant) {
     const nextLayout = makeLayout(count, nextVariant);
@@ -523,9 +579,12 @@ export default function Home() {
     setActive(0);
     setTurn(1);
     setBoard(makeBoard(nextLayout));
-    setBag(shuffledBag(nextLayout.spaces + count * 4, tileMix));
-    setSetAsideTiles([]);
-    setHands(makeHands(count));
+    const nextBag = shuffledBag(nextLayout.spaces + count * 4, tileMix, count);
+    setBag(nextBag.slice(1));
+    setSetAsideTiles(nextBag.slice(0, 1));
+    setMissionEnded(false);
+    setMulligan(false);
+    setCardSupply(dealCards(count));
     setCrawlerPositions(
       nextLayout.starts.map(({ q, r }) => coordinateIndex(nextHexes, q, r)),
     );
@@ -616,9 +675,12 @@ export default function Home() {
             setTurn(1);
             setTileMix(defaultTileMix);
             setBoard(makeBoard(nextLayout));
-            setBag(shuffledBag(nextLayout.spaces + count * 4, defaultTileMix));
-            setSetAsideTiles([]);
-            setHands(makeHands(count));
+            const nextBag = shuffledBag(nextLayout.spaces + count * 4, defaultTileMix, count);
+            setBag(nextBag.slice(1));
+            setSetAsideTiles(nextBag.slice(0, 1));
+            setMissionEnded(false);
+            setMulligan(false);
+            setCardSupply(dealCards(count));
             setCrawlerPositions(
               nextLayout.starts.map(({ q, r }) =>
                 coordinateIndex(nextHexes, q, r),
@@ -649,7 +711,11 @@ export default function Home() {
     return () => lifecycle.abort();
   }, [variant]);
 
-  const instructions = !selected
+  if (!clientReady) return <main className="min-h-screen bg-background p-7 text-foreground">Preparing the mission…</main>;
+
+  const instructions = mulligan
+    ? actionResolved ? 'Mulligan complete. Claim or finish the turn.' : 'Mulligan: move 0–3 spaces, then resolve to mine here or finish.'
+    : !selected
     ? 'Choose one card from your hand.'
     : !selectedSide
       ? 'Choose the left or right action.'
@@ -755,19 +821,19 @@ export default function Home() {
             </div>
             <div className="stat-row">
               <span>Low Yield Mine First Dig</span>
-              <b className="whitespace-nowrap">2 Credits</b>
-            </div>
-            <div className="stat-row">
-              <span>Low Yield Mine 2nd Dig</span>
-              <b className="whitespace-nowrap">1 Credit</b>
-            </div>
-            <div className="stat-row">
-              <span>High Yield Mine</span>
               <b className="whitespace-nowrap">3 Credits</b>
             </div>
             <div className="stat-row">
+              <span>Low Yield Mine 2nd Dig</span>
+              <b className="whitespace-nowrap">2 Credits</b>
+            </div>
+            <div className="stat-row">
+              <span>High Yield Mine</span>
+              <b className="whitespace-nowrap">4 Credits</b>
+            </div>
+            <div className="stat-row">
               <span>Opponent Crosses Your Bridge</span>
-              <b className="whitespace-nowrap">1 Credit</b>
+              <b className="whitespace-nowrap">3 Credits</b>
             </div>
           </section>
           <div className="divider" />
@@ -780,10 +846,10 @@ export default function Home() {
             ))}
           </div>
           <p className="muted">
-            The final volcano ends the mission immediately, whether explored or
-            set aside. After every full round, draw {players} tiles and set them
-            aside. The bag includes {players * 4} extra tiles and {volcanoTarget}
-            {' '}volcanoes using the same terrain percentages.
+            Set aside one tile before each turn, including the first. Set-aside
+            volcanoes count toward eruption. At {volcanoTarget} volcanoes, finish
+            the current round so everyone has equal turns. The bag includes
+            {' '}{players * 4} extra tiles and {currentCounts.volcano} volcanoes.
           </p>
           <div className="stat-row">
             <span>Turn</span>
@@ -815,6 +881,18 @@ export default function Home() {
             <span>Rounds completed</span>
             <b>{Math.floor((turn - 1) / players)}</b>
           </div>
+          <div className="stat-row">
+            <span>Draw deck</span>
+            <b>{cardSupply.drawPile.length}</b>
+          </div>
+          <div className="stat-row">
+            <span>Discard pile</span>
+            <b>{cardSupply.discardPile.length}</b>
+          </div>
+          <p className="muted">
+            54 cards · 9 of each type. Draw four random cards at setup.
+            When the draw deck is empty, shuffle the discards to draw again.
+          </p>
         </aside>
         <div className="play-column order-1 xl:order-2">
           <section className="board-shell" aria-label="Venus exploration board">
@@ -960,6 +1038,13 @@ export default function Home() {
             </p>
           </section>
           <aside className="panel hand-panel">
+            {volcanoes >= volcanoTarget && !gameOver && (
+              <output className="muted">Eruption: finish this round. {players - active} turn(s) remain, including this turn.</output>
+            )}
+            <Button variant="outline" onClick={beginMulligan} disabled={boardTouched || actionResolved || mulligan || gameOver || passScreen}>
+              Mulligan — replace all four cards
+            </Button>
+            <p className="muted">Instead of playing a card, draw four replacements, move your crawler 0–3 spaces and optionally mine at its final location. This uses your turn.</p>
             <p className="eyebrow">
               {playerNames[active]}’s hand · choose one card
             </p>
@@ -971,29 +1056,29 @@ export default function Home() {
                 >
                   <button
                     onClick={() => chooseCard(card.id)}
-                    disabled={boardTouched}
+                    disabled={boardTouched || mulligan || actionResolved || gameOver || passScreen}
                     aria-label={`Select card: ${card.left.label} or ${card.right.label}`}
                     className="card-select-overlay"
                   />
                   <button
                     className={`card-half ${selectedCard === card.id && selectedSide === 'left' ? 'chosen' : ''}`}
                     onClick={() => chooseSide('left', card)}
-                    disabled={boardTouched}
+                    disabled={boardTouched || mulligan || actionResolved || gameOver || passScreen}
                   >
                     {card.left.label}
                     {card.left.kind === 'bridge' && (
-                      <small className="bridge-card-note">Build within 5 spaces. Earn 1 Credit each time an opponent crosses.</small>
+                      <small className="bridge-card-note">Build within 5 spaces. Earn 3 Credits each time an opponent crosses.</small>
                     )}
                   </button>
                   <em>OR</em>
                   <button
                     className={`card-half right ${selectedCard === card.id && selectedSide === 'right' ? 'chosen' : ''}`}
                     onClick={() => chooseSide('right', card)}
-                    disabled={boardTouched}
+                    disabled={boardTouched || mulligan || actionResolved || gameOver || passScreen}
                   >
                     {card.right.label}
                     {card.right.kind === 'bridge' && (
-                      <small className="bridge-card-note">Build within 5 spaces. Earn 1 Credit each time an opponent crosses.</small>
+                      <small className="bridge-card-note">Build within 5 spaces. Earn 3 Credits each time an opponent crosses.</small>
                     )}
                   </button>
                 </div>
@@ -1029,7 +1114,7 @@ export default function Home() {
                 <Button
                   disabled={
                     action.kind === 'crawler' || action.kind === 'drone'
-                      ? stepsUsed === 0
+                      ? stepsUsed === 0 && !mulligan
                       : placedBridges.length === 0
                   }
                   onClick={resolveAction}
@@ -1044,7 +1129,7 @@ export default function Home() {
               disabled={!actionResolved || claimDialogOpen || gameOver}
               onClick={endTurn}
             >
-              Finish turn &amp; pass
+              {volcanoes >= volcanoTarget && active === players - 1 ? 'Finish turn & end mission' : 'Finish turn & pass'}
             </Button>
             <p className="muted mt-3">
               Crawler routes use mapped, passable spaces. Drone routes reveal
@@ -1066,7 +1151,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Mine claim available</DialogTitle>
             <DialogDescription>
-              Discovering either mine earns 1 point. Low yield mines pay 2 points, then 1; high yield mines pay 3 points once. Choose a claim or skip the
+              Discovering either mine earns 1 point. Low yield mines pay 3 points, then 2; high yield mines pay 4 points once. Choose a claim or skip the
               remaining opportunities.
             </DialogDescription>
           </DialogHeader>
@@ -1128,14 +1213,14 @@ export default function Home() {
         </div>
         <p className="muted">
           Adjusting one terrain type automatically rebalances the others. The
-          four sliders always total 92%; volcanoes use the remaining fixed 8%.
+          four sliders express relative weights totaling 92. They scale to the space remaining after the tuned volcano share.
         </p>
         <div className="mix-sliders">
           {adjustableTerrains.map((terrain) => (
             <label className="mix-slider" key={terrain}>
               <span>
                 <b>{terrainLabel[terrain]}</b>
-                <output>{tileMix[terrain]}%</output>
+                <output>{(tileMix[terrain] / 92 * (100 - volcanoPercentage(players))).toFixed(1)}%</output>
               </span>
               <input
                 type="range"
@@ -1154,10 +1239,10 @@ export default function Home() {
           ))}
           <div className="volcano-guideline">
             <span>Volcano</span>
-            <strong>8%</strong>
+            <strong>{volcanoPercentage(players)}%</strong>
             <small>
               {([2, 3, 4] as const).map((count) =>
-                `${count} players: ${terrainCounts(makeLayout(count, variant).spaces + count * 4, tileMix).volcano} tiles`,
+                `${count} players: ${terrainCounts(makeLayout(count, variant).spaces + count * 4, tileMix, count).volcano} tiles`,
               ).join(' · ')}
             </small>
           </div>

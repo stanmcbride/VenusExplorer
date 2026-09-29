@@ -4,7 +4,7 @@ Version **0.0** is the first pass-and-play digital prototype of the Venus Explor
 
 ## Premise
 
-Players are coworkers employed by **Veld Mining Company** and deployed to Venus. Each explorer commands a **crawler** (the crew's surface vehicle/base) and a **drone** (the scouting unit). The objective is to discover and mine more valuable resources than the other explorers, then survive until volcanic activity makes the surface untenable. When the final volcano is revealed, the game ends immediately; the explorer with the most points wins.
+Players are coworkers employed by **Veld Mining Company** and deployed to Venus. Each explorer commands a **crawler** (the crew's surface vehicle/base) and a **drone** (the scouting unit). The objective is to discover and mine more valuable resources than the other explorers, then survive until volcanic activity makes the surface untenable. When explored and set-aside volcanoes reach the eruption threshold, finish the current round; the explorer with the most points wins.
 
 ## Intended format
 
@@ -21,35 +21,34 @@ Each player has one crawler, one drone, and claim tokens in their color. Shared 
 
 | Tile            | Effect                                                                                            |
 | --------------- | ------------------------------------------------------------------------------------------------- |
-| Start / base    | Seven connected safe hexes: one central base hex surrounded by six starting hexes.                |
+| Start / base    | One safe starting base per player on the Current board; other spaces start unexplored.                |
 | Plain           | Explored, traversable terrain with no resource value.                                             |
 | Canyon          | Blocks crawlers until a bridge spans the canyon.                                                  |
-| Low yield mine  | Discovery: 1 point. Two claims: first 2 points, then 1 point.                       |
-| High yield mine | Discovery: 1 point. One mining claim worth 3 points; then exhausted.                     |
-| Volcano         | Impassable to crawlers. When the configured final volcano is revealed, the game ends immediately. |
+| Low yield mine  | Discovery: 1 point. Two claims: first 3 points, then 2 points.                       |
+| High yield mine | Discovery: 1 point. One mining claim worth 4 points; then exhausted.                     |
+| Volcano         | Impassable to crawlers. Reaching the eruption threshold starts the final round; finish all remaining turns. |
 
 ## Setup
 
 1. Select the number of players and assign colors/tokens.
-2. Leave the center base hex open. Place each crawler and its drone as evenly as possible around the six outer hexes of the safe base ring: opposite for two players, every other space for three, and alternating one- and two-space gaps for four.
+2. Place each crawler on its safe starting base around the center: opposite for two players, every other ring position for three, and alternating one- and two-space gaps for four. No extra terrain is revealed.
 3. Build and shuffle the terrain bag from the selected terrain ratios.
-4. Build and shuffle the action deck.
-5. Deal four cards to every player.
-6. Randomly determine the first player unless a later rule specifies another method.
+4. Build the fixed 54-card action deck: nine copies of each of the six card types. Shuffle the entire deck.
+5. Randomly deal four cards to every player, one at a time around the table. Keep the remaining cards as a face-down draw deck; begin with an empty discard pile.
+6. Astra (seat 1) begins in the digital game. Set aside one bag tile before that first turn; it reveals no board space and awards no points.
 
 ## Turn sequence
 
-1. The active player chooses one card from their four-card hand.
-2. They choose exactly one of the card's two actions.
-3. They begin the action on the board. The first valid board selection locks both the card and the selected half for the remainder of the turn.
-4. They resolve that action completely. Unused movement may be forfeited.
-5. If their crawler reaches an eligible mine, a claim prompt appears; they may claim or skip it.
-6. The played card goes to the discard pile.
-7. The player draws back to four cards.
-8. Play passes clockwise behind a full-screen privacy curtain that hides the board and every hand.
-9. The next player explicitly reveals their four-card hand to begin their turn.
+1. Set aside one bag tile before acting, including turn 1. Set-aside volcanoes count toward eruption; no separate round draw occurs.
+2. Choose a card and one of its two actions, or take a mulligan instead.
+3. The first valid board selection locks the card and action. Drone reveals and discovery points cannot be undone.
+4. Resolve the action. Unused movement may be forfeited. Claim eligible mines or skip mining.
+5. Discard the played card and draw its replacement. If the draw deck is empty, shuffle the discards, including the just-played card. Existing hands stay private and intact.
+6. Finish the turn. If eruption has occurred and this was the last seat of the round, end the mission; otherwise prepare the next turn's one set-aside draw and pass behind the privacy curtain.
 
-If a volcano revealed during an action reaches the configured eruption threshold, play ends immediately—even if movement or the current turn would otherwise continue.
+**Mulligan:** before committing an action, a player may discard all four cards and draw four replacements, whether or not the old hand had legal actions. Move the crawler **0–3 legal spaces** and optionally mine at its **final location only**, including its current location if it stays put. Normal blocking and bridge rewards apply. This replaces the entire turn; do not draw another card when ending it. Discard recycling may return a card just discarded. A mulligan cannot be cancelled or repeated in the same turn after seeing the new cards.
+
+**Eruption:** the triggering player finishes their action, mining and turn. Later seats finish the same round, so everyone receives equal total turns. Continue the usual pre-turn draw while tiles remain. No extra full lap is awarded. A draw that triggers eruption at the first seat starts a final round for everyone. Stop only after the last seat finishes; do not draw another tile afterward.
 
 ## Initial action cards
 
@@ -62,7 +61,7 @@ If a volcano revealed during an action reaches the configured eruption threshold
 | Build 1 bridge section  | Move crawler 2; may mine at each location |
 | Build 1 bridge section  | Explore with drone 4                      |
 
-These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current deck direction. Slide 12 records earlier exploration, so its additional or alternate faces are excluded from the active deck. The frequency of each current card type remains configurable. “Build a bridge” needs placement and supply rules before it can be fully enforced.
+These six faces come from slide 1 of `CardDeck_v0.1.pptx`. Slide 12 records earlier exploration, so its additional or alternate faces are excluded from the active deck. The deck is fixed at **54 cards**, currently evenly distributed as **nine copies of each of these six types**. Dealing and discard recycling use a random shuffle; replacements are drawn from the deck, not generated from the player's seat or turn number.
 
 ## Movement and exploration
 
@@ -87,41 +86,37 @@ These six faces come from slide 1 of `CardDeck_v0.1.pptx` and define the current
 
 - A crawler that ends its movement on a mine may claim it; claiming is optional.
 - Discovering either mine awards 1 point. Revisiting revealed mines awards no discovery points. Drone exploration cannot be undone; revealed terrain and discovery points are permanent.
-- A low yield mine accepts two claims: first 2 points, then 1 point, then it is exhausted. The same explorer may claim again on a later visit.
-- A high yield mine awards 3 points to the first claimant and is then exhausted.
+- A low yield mine accepts two claims: first 3 points, then 2 points, then it is exhausted. The same explorer may claim again on a later visit.
+- A high yield mine awards 4 points to the first claimant and is then exhausted.
 - Scores and claims should both be visible so playtesters can audit the result.
 - Highest score wins. Tie-breaking is not yet specified.
 
 ## First-player balance
 
-The first player must create the first useful survey route, while later players may use terrain that is already public. The immediate volcano ending applies equally to all players and avoids granting a compensating final turn. These are intended balancing forces, but playtests should measure them rather than assume they fully remove turn-order advantage.
+Equal total turns do not guarantee equal win chances. The ending comparison found different seat preferences for balanced and mixed styles; adjusted uncertainty intervals did not establish a universal balance improvement. See [research summary](docs/research-summary.md).
 
 ## Version 0.0 implementation
 
-The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, four-card hands for each player, crawler positions, connected legal route selection, randomized drone exploration, bridge placement, enforced mine claims and scoring, card replacement, a configurable development terrain mix, and an immediate final-volcano ending. It is still a playtest prototype: deck reshuffling, a privacy pass screen, bridge inventory, richer movement previews, and final tie handling remain to be added.
+The current interface provides a player-count-scaled survey board, 2–4 pass-and-play explorers, randomly dealt four-card hands from a fixed 54-card deck, discard reshuffling, a privacy pass screen, crawler positions, connected legal route selection, randomized drone exploration, bridge placement, enforced mine claims and scoring, a configurable development terrain mix, and a finish-the-round eruption ending and optional whole-hand mulligans. It is still a playtest prototype: bridge inventory, richer movement previews, and final tie handling remain to be added.
 
 ### Provisional balance defaults
 
-The seven-hex starting block is surrounded by three exploration rings for two players, four rings for three players, and five rings for four players. This produces boards of 61, 91, and 127 total spaces, with 54, 84, or 120 exploration tiles. Volcanoes are fixed at 8% of non-base tiles, rounded to the nearest whole tile: 4 volcanoes for two players, 7 for three, and 10 for four. The default remaining mix is 40% plains, 17% canyons, 23% low yield mines, and 12% high yield mines. Development sliders rebalance those four values to a combined 92% and regenerate the bag when applied. These remain playtest values rather than finalized rules.
+The Current board has 61/91/127 spaces and 2/3/4 safe bases, leaving **59/88/123 explorable spaces**. Add four bag tiles per player, giving **67/100/139 tiles**. Nominal volcano shares are **9%/10%/12%** for 2/3/4 players; round to the nearest tile. Eruption thresholds remain the original rounded 8% of the enlarged bag, **5/8/11**, rather than rising with the volcano count.
 
-## Decisions needed next
+| Players | Plain | Canyon | Low mine | High mine | Volcano | Eruption threshold |
+|---|---:|---:|---:|---:|---:|---:|
+| 2 | 13 | 31 | 10 | 7 | 6 | 5 |
+| 3 | 19 | 46 | 15 | 10 | 10 | 8 |
+| 4 | 27 | 62 | 20 | 13 | 17 | 11 |
 
-1. Whether drone movement is a single contiguous route and whether it may revisit a hex during one action.
-2. What happens when a drone reaches the board edge before spending all movement.
-3. Whether a crawler may move through another crawler or share a hex.
-4. Bridge placement: placed from the crawler, adjacent to it, from anywhere explored, or as part of movement; one permanent bridge per canyon tile or an edge-spanning bridge between two banks.
-5. Whether bridge pieces are limited, shared, owned, and/or worth points.
-6. Low yield mines allow two claims total, worth 2 then 1 point. The same explorer may claim again on a later visit.
-7. Whether mining consumes movement, the whole card action, or no additional action.
-8. Set the deck size and number of copies of each approved slide 1 card face.
-9. Discard reshuffle behavior and whether players hold private hands in pass-and-play.
-10. Final tile ratios by player count and whether the eruption threshold changes with board size.
-11. What occurs if the terrain bag empties before the final volcano appears.
-12. Tie-breaker order and whether returning the crawler to safety matters at game end.
+Non-volcano terrain retains relative weights 20:47:15:10 and scales proportionally to the remaining bag slots using largest-remainder rounding. Development sliders edit those relative weights. Alternate boards use their actual explorable area plus four tiles per player and the same formulas; the 5/8/11 thresholds specifically describe Current. Existing terrain shuffle behavior is preserved.
 
-## Development direction
+## Remaining design questions
 
-The next milestone should add the pass-and-play privacy curtain and structured playtest logging for win rate by seat, points per turn, tiles revealed per drone card, mine availability, bridge usage, and the turn on which eruption occurs.
+- Tie-breaking beyond shared highest scores.
+- Whether bridge inventory should be limited.
+- Human playing time, enjoyment and strategy balance under the adopted rules.
+- Local save/resume and richer score breakdowns in the playable interface.
 
 ## Digital play questions and provisional answers
 
@@ -138,7 +133,7 @@ These defaults borrow the clarity and pacing of polished digital board-game adap
 9. **How should bridges be placed?** Initial answer: treat each bridge section as a placed connection across one canyon hex edge. The player chooses an explored canyon within five spaces of their crawler and previews each bridge before confirming. This remains provisional because the physical rule is not yet explicit.
 10. **How should game information be explained?** Initial answer: use concise contextual tooltips and a collapsible rules reference. Do not interrupt routine turns with tutorials after the first guided game.
 11. **How should scoring be presented?** Initial answer: keep scores visible throughout play for the prototype because balance testing benefits from transparency. Add a setting later if hidden scoring becomes desirable.
-12. **What should happen when the eruption ends the game?** Initial answer: stop immediately on the final volcano reveal, show the completed board, then present a scoring breakdown and replay summary. Do not give remaining players a final turn.
+12. **What should happen when eruption occurs?** Finish the triggering round, then compare scores. Everyone gets equal total turns; there is no extra lap.
 13. **How much animation should version 0.0 use?** Initial answer: short functional motion only for card selection, route previews, tile reveals, crawler movement, and the eruption. Add richer art direction after the rules engine stabilizes.
 14. **Should a game survive a browser refresh?** Initial answer: save the current local game automatically on the device and offer Resume or New Game. Online accounts and multiplayer synchronization remain out of scope.
 
@@ -146,16 +141,10 @@ These defaults borrow the clarity and pacing of polished digital board-game adap
 
 The Board variant dropdown starts a fresh game with the selected layout. Reset and crew-size changes preserve that selection. All layouts use the same movement, mining, cards, and terrain percentages; volcano counts and tile bags use each layout's actual explorable area.
 
-- **Current:** original central seven-hex base and player-count-scaled hexagon.
+- **Current:** player-count-scaled hexagon with one safe starting base per player.
 - **Tight Circle:** Current with one outer exploration ring removed.
-- **Valley Run:** a straight staggered hex corridor, player count plus one spaces wide, with a safe starting row at one end. Length approximates Tight Circle's explorable area.
-- **Triangle:** widening rows from one shared corner, with six safe corner spaces and separate player starts. Side length approximates Tight Circle's explorable area.
-
-| Players | Current exploration tiles | Tight Circle | Valley Run | Triangle |
-| --- | ---: | ---: | ---: | ---: |
-| 2 | 54 | 30 | 30 | 30 |
-| 3 | 84 | 54 | 56 | 49 |
-| 4 | 120 | 84 | 85 | 85 |
+- **Valley Run:** a straight staggered hex corridor, player count plus one spaces wide, with one safe starting base per player at one end. Length approximates Tight Circle's explorable area.
+- **Triangle:** widening rows from one shared corner, with two safe bases for two players or four bases in a U for three/four players. Side length approximates Tight Circle's explorable area.
 
 Changing board or crew discards the current game. These experimental layouts do not yet add playtest logging or replayable seeds.
 
@@ -163,14 +152,12 @@ Changing board or crew discards the current game. These experimental layouts do 
 
 - Build on any revealed, unbridged canyon within five hex spaces of your crawler, measured by hex distance. Terrain between the crawler and canyon does not block building.
 - Each bridge keeps its builder’s color and ownership.
-- When a confirmed crawler route enters an opponent’s bridge tile, the builder earns 1 credit for each entry, including repeat crossings. Using your own bridge or flying a drone over one awards no credits. Previewing or undoing an unconfirmed route awards no credits.
+- When a confirmed crawler route enters an opponent’s bridge tile, the builder earns 3 credits for each entry, including repeat crossings. Using your own bridge or flying a drone over one awards no credits. Previewing or undoing an unconfirmed route awards no credits.
 
-## Round-based eruption clock (current rule)
+## Research and verification
 
-The bag contains the board's actual explorable area plus **four extra tiles per player**. Apply the existing terrain percentages to this enlarged bag, including 8% volcanoes and the existing integer rounding.
+The tuned turn clock supersedes the earlier round-based clock. Historical experiments remain separate and retain their captured source; do not rerun old adapters against these new rules or bypass their fingerprint checks.
 
-After every player has completed a turn, beginning after round 1, draw **one tile per player** from the bag and set those tiles aside. They never enter the board and award no discovery or mining points. Set-aside volcanoes count toward the same eruption threshold as explored volcanoes. Reaching the final volcano ends the game immediately, including at a round boundary; no next-player privacy screen appears. If fewer tiles remain than the required round draw, set aside all remaining tiles.
+Research findings and limitations: [docs/research-summary.md](docs/research-summary.md).
 
-Drone exploration has no undo. Revealed tiles and discovery points are permanent. Crawler routes and bridge previews may still be undone before resolution.
-
-This rule supersedes earlier bag-size and volcano-count descriptions above. The terrain percentages have not changed.
+Run implementation checks with `node --test scripts/rules/tests.mjs`, `npx tsc --noEmit`, `npm run lint`, and `npm run build`.
